@@ -1,0 +1,10 @@
+pillow
+yt-dlp
+numpy
+librosa
+matplotlib
+reportlab
+pyloudnorm
+tkinterdnd2
+pyinstaller
+openpyxl

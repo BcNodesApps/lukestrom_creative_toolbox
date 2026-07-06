@@ -1,0 +1,58 @@
+Here’s a tightened and accurate version based on your **current tester app** (no old features, no fluff):
+
+---
+
+## 4-Post Tester – what it does
+
+Generates a structured testing schedule for a song release
+Outputs a ready-to-import `.ics` calendar file
+Uses your calendar as the execution system (no thinking, just doing)
+
+---
+
+## Core flow
+
+Start date = full video ready
+
+Automatically plans:
+
+* full video finalization
+* DistroKid upload
+* hook test (2 variants)
+* moment test (2 variants)
+* winner selection moments
+* crossposting of best-performing combo
+* repost cycles
+* final cleanup
+
+---
+
+## Key features
+
+Predefined, proven timing structure (no manual planning needed)
+Reusable dropdown system for hooks and moments
+Clear task naming (song + hook + moment combination)
+Built-in ChatGPT prompts for captions where needed
+Platform links included for direct posting
+Exports clean `.ics` file for Outlook / calendar use
+
+---
+
+## Specialities (this is where it stands out)
+
+Focuses on **testing before scaling** (hook → moment → winner)
+Separates **creative variables** (hook vs moment) for clarity
+Turns content strategy into **executable daily actions**
+Eliminates decision fatigue during publishing
+Reposts are treated as new opportunities, not duplicates
+Works offline as a standalone `.exe`
+
+---
+
+## Reality check (important)
+
+This tool does **not** track performance or store data.
+Analysis is done externally (e.g. Excel).
+
+This tool is purely:
+→ **planning + execution discipline**

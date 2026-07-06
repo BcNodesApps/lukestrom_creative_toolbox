@@ -1,0 +1,528 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+from datetime import datetime, date, time, timedelta
+from pathlib import Path
+import random
+from tkcalendar import DateEntry
+import uuid
+
+
+DOWNLOADS_PATH = Path.home() / "Downloads"
+
+URL_TIKTOK = "https://www.tiktok.com/tiktokstudio/upload?from=webapp&lang=en-GB"
+URL_YOUTUBE = "https://studio.youtube.com/channel/UCAUCC7uw_shkAmX7kPMy5IQ/videos/upload?d=ud&filter=%5B%5D&sort=%7B%22columnType%22%3A%22date%22%2C%22sortOrder%22%3A%22DESCENDING%22%7D"
+URL_INSTAGRAM = "https://www.instagram.com/lukestrommusic/"
+URL_FACEBOOK = "https://www.facebook.com/lukestrommusic/reels/"
+URL_DISTROKID = "https://distrokid.com/new/"
+
+HOOK_OPTIONS = [
+    "Curiosity text",
+    "Emotional text",
+    "Dramatic text",
+    "Question text",
+    "Direct quote",
+    "Confession style",
+    "Wait-for-it intro",
+    "Unexpected claim",
+    "Tension opener",
+    "No text opener",
+]
+
+MOMENT_OPTIONS = [
+    "Wide cinematic scene",
+    "Close-up face",
+    "Walking shot",
+    "Band wide shot",
+    "Instrument close-up",
+    "Chorus hit",
+    "Verse storytelling",
+    "Emotional vocal line",
+    "Drop / beat kick-in",
+    "Character reveal",
+    "Two-person tension shot",
+    "Walking away shot",
+]
+
+HOOK_MOMENT_REMINDER = (
+    "The hook is the entry, the text on screen, the first impression of what’s happening.\n\n"
+    "The moment is the visual + part of the song you choose. It is: what is happening in the video, "
+    "which part of the track plays, the emotional situation."
+)
+
+
+def safe_song_title(title: str) -> str:
+    return " ".join(title.strip().split()).lower()
+
+
+def generate_output_name(title: str, start_date: datetime) -> str:
+    safe_title = safe_song_title(title)
+    date_prefix = start_date.strftime("%y%m%d")
+    return f"{date_prefix}_{safe_title}_tester_schedule.ics"
+
+
+def get_random_event_time() -> time:
+    hour = random.randint(10, 22)
+    minute = random.choice([0, 15, 30, 45])
+    return time(hour, minute)
+
+
+def add_task(schedule: list, task_date: date, summary: str, description: str):
+    schedule.append({
+        "datetime": datetime.combine(task_date, get_random_event_time()),
+        "task": summary,
+        "description": description,
+    })
+
+
+def format_ics_datetime(dt: datetime) -> str:
+    return dt.strftime("%Y%m%dT%H%M%S")
+
+
+def create_ics_content(schedule: list[dict]) -> str:
+    now_stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Lukestrom//Post Tester//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+    ]
+
+    for item in schedule:
+        start_dt = item["datetime"]
+        end_dt = start_dt + timedelta(minutes=30)
+        description = item["description"].replace("\n", "\\n")
+        uid = f"{uuid.uuid4()}@lukestrom.local"
+
+        lines.extend([
+            "BEGIN:VEVENT",
+            f"UID:{uid}",
+            f"DTSTAMP:{now_stamp}",
+            f"DTSTART:{format_ics_datetime(start_dt)}",
+            f"DTEND:{format_ics_datetime(end_dt)}",
+            f"SUMMARY:{item['task']}",
+            f"DESCRIPTION:{description}",
+            "END:VEVENT",
+        ])
+
+    lines.append("END:VCALENDAR")
+    return "\n".join(lines)
+
+
+def caption_prompt(song_title: str, combo_label: str, repost: bool = False) -> str:
+    if repost:
+        return (
+            f"Generate new captions for TikTok, YouTube Shorts, Instagram Reels, and Facebook Reels "
+            f"for reposting '{song_title}' using the winning combo '{combo_label}'. "
+            f"The caption should feel fresh, cinematic, emotional, and specific. "
+            f"Do not make it generic. Also provide suitable hashtags per platform."
+        )
+
+    return (
+        f"Generate captions for TikTok, YouTube Shorts, Instagram Reels, and Facebook Reels "
+        f"for '{song_title}' using the combo '{combo_label}'. "
+        f"Keep the tone cinematic, emotional, and specific. "
+        f"Do not make it generic. Also provide suitable hashtags per platform."
+    )
+
+
+def build_description(
+    purpose: str,
+    dimensions: list[str] | None = None,
+    prompt: str | None = None,
+    urls: list[str] | None = None,
+):
+    lines = [f"Purpose: {purpose}", ""]
+
+    if dimensions:
+        lines.append("Dimensions:")
+        lines.extend(dimensions)
+        lines.append("")
+
+    lines.append("Reminder:")
+    lines.append(HOOK_MOMENT_REMINDER)
+
+    if prompt:
+        lines.append("")
+        lines.append("ChatGPT prompt:")
+        lines.append(prompt)
+
+    if urls:
+        lines.append("")
+        lines.append("URLs:")
+        lines.extend(urls)
+
+    return "\n".join(lines)
+
+
+def combo_label(hook: str, moment: str) -> str:
+    return f"{hook} + {moment}"
+
+
+def build_tester_schedule(
+    song_title: str,
+    full_video_ready_date: date,
+    posting_date_reel_a: date,
+    posting_date_reel_b: date,
+    posting_date_winner_a: date,
+    posting_date_winner_b: date,
+    hook_a: str,
+    hook_b: str,
+    moment_a: str,
+    moment_b: str,
+):
+    schedule = []
+
+    hook_a = hook_a.strip() or "Hook A"
+    hook_b = hook_b.strip() or "Hook B"
+    moment_a = moment_a.strip() or "Moment A"
+    moment_b = moment_b.strip() or "Moment B"
+
+    reel_a_combo = combo_label(hook_a, moment_a)
+    reel_b_combo = combo_label(hook_b, moment_a)
+    winner_a_combo = combo_label("Winning Hook", moment_a)
+    winner_b_combo = combo_label("Winning Hook", moment_b)
+    best_combo = "Winning Combo"
+
+    step_2_date = full_video_ready_date + timedelta(days=2)
+    create_reels_date = step_2_date + timedelta(days=1)
+
+    review_a_date = posting_date_reel_a + timedelta(days=1)
+    review_b_date = posting_date_reel_b + timedelta(days=1)
+
+    create_winner_reels_date = review_b_date + timedelta(days=1)
+    schedule_winner_posts_date = create_winner_reels_date + timedelta(days=1)
+
+    review_winner_a_date = posting_date_winner_a + timedelta(days=1)
+    review_winner_b_date = posting_date_winner_b + timedelta(days=1)
+
+    crosspost_date = review_winner_b_date + timedelta(days=1)
+    repost_1_date = crosspost_date + timedelta(days=7)
+    repost_2_date = crosspost_date + timedelta(days=14)
+
+    add_task(
+        schedule,
+        full_video_ready_date,
+        f"{song_title} - create full video + cover",
+        build_description(
+            purpose="Create the full video and the YouTube cover.",
+            dimensions=[
+                "Full video: 3840x2160",
+                "YouTube cover: 1280x720",
+            ],
+        ),
+    )
+
+    add_task(
+        schedule,
+        step_2_date,
+        f"{song_title} - publish on DistroKid",
+        build_description(
+            purpose="Publish the song on DistroKid and prepare the DistroKid cover.",
+            dimensions=[
+                "DistroKid cover: 3000x3000",
+            ],
+            urls=[URL_DISTROKID],
+        ),
+    )
+
+    add_task(
+        schedule,
+        create_reels_date,
+        f"{song_title} - create {reel_a_combo} and {reel_b_combo}",
+        build_description(
+            purpose="Create the two hook test reels and the shared reel cover.",
+            dimensions=[
+                "Reels: 1080x1920",
+                "Reel cover: 1080x1920",
+            ],
+        ),
+    )
+
+    add_task(
+        schedule,
+        posting_date_reel_a,
+        f"{song_title} - post {reel_a_combo} on TikTok",
+        build_description(
+            purpose="Post the first hook test reel on TikTok.",
+            prompt=caption_prompt(song_title, reel_a_combo),
+            urls=[URL_TIKTOK],
+        ),
+    )
+
+    add_task(
+        schedule,
+        posting_date_reel_b,
+        f"{song_title} - post {reel_b_combo} on TikTok",
+        build_description(
+            purpose="Post the second hook test reel on TikTok.",
+            prompt=caption_prompt(song_title, reel_b_combo),
+            urls=[URL_TIKTOK],
+        ),
+    )
+
+    add_task(
+        schedule,
+        review_a_date,
+        f"{song_title} - review {reel_a_combo}",
+        build_description(
+            purpose="Review performance of the first hook test reel.",
+        ),
+    )
+
+    add_task(
+        schedule,
+        review_b_date,
+        f"{song_title} - review {reel_b_combo} and decide winning hook",
+        build_description(
+            purpose="Review performance of the second hook test reel and decide the winning hook.",
+        ),
+    )
+
+    add_task(
+        schedule,
+        create_winner_reels_date,
+        f"{song_title} - create {winner_a_combo} and {winner_b_combo}",
+        build_description(
+            purpose="Create the two moment test reels based on the winning hook.",
+            dimensions=[
+                "Reels: 1080x1920",
+            ],
+        ),
+    )
+
+    add_task(
+        schedule,
+        schedule_winner_posts_date,
+        f"{song_title} - schedule winner combo TikTok posts",
+        build_description(
+            purpose="Reminder to schedule the two winner-hook TikTok posts using the dates entered in the app.",
+        ),
+    )
+
+    add_task(
+        schedule,
+        posting_date_winner_a,
+        f"{song_title} - post {winner_a_combo} on TikTok",
+        build_description(
+            purpose="Post the first moment test reel on TikTok.",
+            prompt=caption_prompt(song_title, winner_a_combo),
+            urls=[URL_TIKTOK],
+        ),
+    )
+
+    add_task(
+        schedule,
+        posting_date_winner_b,
+        f"{song_title} - post {winner_b_combo} on TikTok",
+        build_description(
+            purpose="Post the second moment test reel on TikTok.",
+            prompt=caption_prompt(song_title, winner_b_combo),
+            urls=[URL_TIKTOK],
+        ),
+    )
+
+    add_task(
+        schedule,
+        review_winner_a_date,
+        f"{song_title} - review {winner_a_combo}",
+        build_description(
+            purpose="Review performance of the first winning-hook moment test reel.",
+        ),
+    )
+
+    add_task(
+        schedule,
+        review_winner_b_date,
+        f"{song_title} - review {winner_b_combo} and decide winning combo",
+        build_description(
+            purpose="Review performance of the second winning-hook moment test reel and decide the winning combo.",
+        ),
+    )
+
+    add_task(
+        schedule,
+        crosspost_date,
+        f"{song_title} - crosspost winning combo",
+        build_description(
+            purpose="Crosspost the winning combo on TikTok, YouTube Shorts, Instagram Reels, and Facebook Reels.",
+            prompt=caption_prompt(song_title, best_combo),
+            urls=[URL_TIKTOK, URL_YOUTUBE, URL_INSTAGRAM, URL_FACEBOOK],
+        ),
+    )
+
+    add_task(
+        schedule,
+        repost_1_date,
+        f"{song_title} - repost winning combo",
+        build_description(
+            purpose="Cross repost the winning combo with a new cover and new caption.",
+            dimensions=[
+                "Repost cover: 1080x1920",
+            ],
+            prompt=caption_prompt(song_title, best_combo, repost=True),
+            urls=[URL_TIKTOK, URL_YOUTUBE, URL_INSTAGRAM, URL_FACEBOOK],
+        ),
+    )
+
+    add_task(
+        schedule,
+        repost_2_date,
+        f"{song_title} - repost winning combo again",
+        build_description(
+            purpose="Cross repost the winning combo again with a new cover and new caption.",
+            dimensions=[
+                "Repost cover: 1080x1920",
+            ],
+            prompt=caption_prompt(song_title, best_combo, repost=True),
+            urls=[URL_TIKTOK, URL_YOUTUBE, URL_INSTAGRAM, URL_FACEBOOK],
+        ),
+    )
+
+    schedule.sort(key=lambda x: x["datetime"])
+    return schedule
+
+
+def run_tester():
+    title = title_var.get().strip()
+
+    if not title:
+        messagebox.showerror("Error", "Please enter a song title.")
+        return
+
+    full_video_ready_date = full_video_ready_date_entry.get_date()
+    posting_date_reel_a = posting_date_reel_a_entry.get_date()
+    posting_date_reel_b = posting_date_reel_b_entry.get_date()
+    posting_date_winner_a = posting_date_winner_a_entry.get_date()
+    posting_date_winner_b = posting_date_winner_b_entry.get_date()
+
+    start_date_dt = datetime.combine(full_video_ready_date, datetime.min.time())
+    output_name = generate_output_name(title, start_date_dt)
+    output_path = DOWNLOADS_PATH / output_name
+
+    schedule = build_tester_schedule(
+        song_title=title,
+        full_video_ready_date=full_video_ready_date,
+        posting_date_reel_a=posting_date_reel_a,
+        posting_date_reel_b=posting_date_reel_b,
+        posting_date_winner_a=posting_date_winner_a,
+        posting_date_winner_b=posting_date_winner_b,
+        hook_a=hook_a_var.get(),
+        hook_b=hook_b_var.get(),
+        moment_a=moment_a_var.get(),
+        moment_b=moment_b_var.get(),
+    )
+
+    ics_content = create_ics_content(schedule)
+    output_path.write_text(ics_content, encoding="utf-8")
+
+    lines = [
+        f"Title: {title}",
+        f"Full video ready date: {full_video_ready_date.strftime('%Y-%m-%d')}",
+        f"Output file: {output_path}",
+        "",
+        "Schedule details:",
+        "",
+    ]
+
+    for item in schedule:
+        lines.append("=" * 80)
+        lines.append(f"{item['datetime'].strftime('%Y-%m-%d %H:%M')}  {item['task']}")
+        lines.append("")
+        lines.append(item["description"])
+        lines.append("")
+
+    result_box.delete("1.0", tk.END)
+    result_box.insert(tk.END, "\n".join(lines))
+    messagebox.showinfo("Done", f"ICS file created:\n{output_path}")
+
+
+root = tk.Tk()
+root.title("Post Tester")
+root.geometry("1180x920")
+root.resizable(False, False)
+
+main_frame = ttk.Frame(root, padding=20)
+main_frame.pack(fill="both", expand=True)
+
+title_var = tk.StringVar()
+hook_a_var = tk.StringVar(value=HOOK_OPTIONS[0])
+hook_b_var = tk.StringVar(value=HOOK_OPTIONS[2])
+moment_a_var = tk.StringVar(value=MOMENT_OPTIONS[5])
+moment_b_var = tk.StringVar(value=MOMENT_OPTIONS[0])
+
+today = date.today()
+reel_a_default = today + timedelta(days=3)
+reel_b_default = today + timedelta(days=4)
+winner_a_default = today + timedelta(days=6)
+winner_b_default = today + timedelta(days=7)
+
+# Left column
+ttk.Label(main_frame, text="Song title").grid(row=0, column=0, sticky="w", pady=(0, 5))
+ttk.Entry(main_frame, width=42, textvariable=title_var).grid(row=1, column=0, sticky="w", pady=(0, 10))
+
+ttk.Label(main_frame, text="Start date (full video ready)").grid(row=2, column=0, sticky="w", pady=(0, 5))
+full_video_ready_date_entry = DateEntry(main_frame, width=18, date_pattern="yyyy-mm-dd")
+full_video_ready_date_entry.grid(row=3, column=0, sticky="w", pady=(0, 10))
+full_video_ready_date_entry.set_date(today)
+
+ttk.Label(main_frame, text="Posting date reel A").grid(row=4, column=0, sticky="w", pady=(0, 5))
+posting_date_reel_a_entry = DateEntry(main_frame, width=18, date_pattern="yyyy-mm-dd")
+posting_date_reel_a_entry.grid(row=5, column=0, sticky="w", pady=(0, 8))
+posting_date_reel_a_entry.set_date(reel_a_default)
+
+ttk.Label(main_frame, text="Posting date reel B").grid(row=6, column=0, sticky="w", pady=(0, 5))
+posting_date_reel_b_entry = DateEntry(main_frame, width=18, date_pattern="yyyy-mm-dd")
+posting_date_reel_b_entry.grid(row=7, column=0, sticky="w", pady=(0, 8))
+posting_date_reel_b_entry.set_date(reel_b_default)
+
+ttk.Label(main_frame, text="Posting date winner combo A").grid(row=8, column=0, sticky="w", pady=(0, 5))
+posting_date_winner_a_entry = DateEntry(main_frame, width=18, date_pattern="yyyy-mm-dd")
+posting_date_winner_a_entry.grid(row=9, column=0, sticky="w", pady=(0, 8))
+posting_date_winner_a_entry.set_date(winner_a_default)
+
+ttk.Label(main_frame, text="Posting date winner combo B").grid(row=10, column=0, sticky="w", pady=(0, 5))
+posting_date_winner_b_entry = DateEntry(main_frame, width=18, date_pattern="yyyy-mm-dd")
+posting_date_winner_b_entry.grid(row=11, column=0, sticky="w", pady=(0, 10))
+posting_date_winner_b_entry.set_date(winner_b_default)
+
+# Right column
+ttk.Label(main_frame, text="Hook A").grid(row=0, column=1, sticky="w", padx=(50, 0), pady=(0, 5))
+hook_a_combo = ttk.Combobox(main_frame, width=30, textvariable=hook_a_var, values=HOOK_OPTIONS, state="readonly")
+hook_a_combo.grid(row=1, column=1, sticky="w", padx=(50, 0), pady=(0, 10))
+
+ttk.Label(main_frame, text="Hook B").grid(row=2, column=1, sticky="w", padx=(50, 0), pady=(0, 5))
+hook_b_combo = ttk.Combobox(main_frame, width=30, textvariable=hook_b_var, values=HOOK_OPTIONS, state="readonly")
+hook_b_combo.grid(row=3, column=1, sticky="w", padx=(50, 0), pady=(0, 10))
+
+ttk.Label(main_frame, text="Moment A").grid(row=4, column=1, sticky="w", padx=(50, 0), pady=(0, 5))
+moment_a_combo = ttk.Combobox(main_frame, width=30, textvariable=moment_a_var, values=MOMENT_OPTIONS, state="readonly")
+moment_a_combo.grid(row=5, column=1, sticky="w", padx=(50, 0), pady=(0, 10))
+
+ttk.Label(main_frame, text="Moment B").grid(row=6, column=1, sticky="w", padx=(50, 0), pady=(0, 5))
+moment_b_combo = ttk.Combobox(main_frame, width=30, textvariable=moment_b_var, values=MOMENT_OPTIONS, state="readonly")
+moment_b_combo.grid(row=7, column=1, sticky="w", padx=(50, 0), pady=(0, 10))
+
+ttk.Label(main_frame, text="Fixed intervals used").grid(row=8, column=1, sticky="w", padx=(50, 0), pady=(0, 5))
+fixed_info = (
+    "Create reels after DistroKid: always 1 day\n"
+    "Crosspost after review: always 1 day\n"
+    "Repost 1 after first crosspost: always 7 days\n"
+    "Repost 2 after first crosspost: always 14 days"
+)
+ttk.Label(main_frame, text=fixed_info, justify="left").grid(
+    row=9, column=1, rowspan=3, sticky="nw", padx=(50, 0), pady=(0, 10)
+)
+
+ttk.Button(main_frame, text="Generate", command=run_tester).grid(row=12, column=0, sticky="w", pady=(0, 15))
+
+ttk.Label(main_frame, text="Result").grid(row=13, column=0, sticky="w")
+
+result_box = tk.Text(main_frame, width=138, height=34, wrap="word")
+result_box.grid(row=14, column=0, columnspan=3, sticky="nsew")
+
+scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=result_box.yview)
+scrollbar.grid(row=14, column=3, sticky="ns")
+result_box.configure(yscrollcommand=scrollbar.set)
+
+root.mainloop()

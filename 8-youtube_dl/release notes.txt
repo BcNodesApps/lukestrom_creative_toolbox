@@ -1,0 +1,140 @@
+YouTube Video Downloader
+
+==================================================
+APP DESCRIPTION
+==================================================
+
+YouTube Video Downloader is a lightweight standalone Python desktop application that downloads the highest available quality video-only stream from a YouTube link.
+
+Features
+
+- Simple GUI window
+- Paste YouTube URL
+- Downloads highest available resolution automatically
+- Saves as .mp4
+- No audio track
+- Saves directly into the Windows Downloads folder
+- Filename format:
+
+  Video Title - 2160p.mp4
+
+- Live status/progress output inside the app
+- Packaged as standalone Windows .exe
+
+Tech stack
+
+- Python
+- tkinter GUI
+- yt-dlp
+- ffmpeg
+- PyInstaller
+
+
+==================================================
+v1.0 RELEASE NOTES
+==================================================
+
+Initial release featuring:
+
+- Basic GUI interface
+- Highest-quality video-only download
+- Automatic MP4 remuxing
+- Automatic filename generation
+- Automatic save to Downloads folder
+- Multi-threaded downloading to keep GUI responsive
+- Console output integrated into GUI
+- Windows .exe support using PyInstaller
+
+Known limitations
+
+- Requires ffmpeg installed and available in PATH
+- Designed for single-video downloads only
+- No playlist support
+- No audio support
+- No custom output folder yet
+
+
+==================================================
+v2.0 RELEASE NOTES
+==================================================
+
+Major fixes and improvements:
+
+- Fixed exe bug where the application opened itself recursively instead of downloading videos
+- Replaced subprocess/self-launch approach with direct yt-dlp Python integration
+- Added hardcoded ffmpeg location:
+
+  C:\ffmpeg\bin
+
+- Application now automatically uses:
+
+  C:\ffmpeg\bin\ffmpeg.exe
+
+- Added Release Notes button inside the GUI
+- Release Notes button opens:
+
+  C:\appdevelopment\toolbox\8-youtube_dl\release notes.txt
+
+- Improved download stability for standalone exe builds
+- Cleaner threading implementation
+- Improved status/progress reporting
+
+Known limitations
+
+- Single video only
+- No playlist support
+- No audio support
+- Saves only to Downloads folder
+- Requires ffmpeg installed in:
+
+  C:\ffmpeg\bin
+
+
+==================================================
+BUILD COMMAND
+==================================================
+
+cd /d C:\appdevelopment\toolbox\8-youtube_dl
+pyinstaller --onefile --windowed main.py
+
+
+==================================================
+NEXT STEPS / FUTURE IMPROVEMENTS
+==================================================
+
+1.
+Integrate release notes more deeply into the app.
+
+2.
+Add output folder selector.
+
+3.
+Add quality selector.
+
+4.
+Add app icon.
+
+5.
+Add proper version number in window title.
+
+6.
+Modularize app structure for future toolbox integration.
+
+7.
+Future improvement:
+Instead of relying on PATH, explicitly define ffmpeg inside the Python code.
+
+Example:
+
+ffmpeg_path = r"C:\ffmpeg\bin"
+
+and include it in the yt-dlp options:
+
+"--ffmpeg-location",
+ffmpeg_path,
+
+This makes the app always use:
+
+C:\ffmpeg\bin\ffmpeg.exe
+
+even if ffmpeg is not added to PATH.
