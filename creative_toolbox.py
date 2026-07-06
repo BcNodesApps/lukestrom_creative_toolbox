@@ -67,7 +67,7 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V3.6"
+APP_VERSION = "V3.9"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
 APP_ICON_FILENAME = "260414 logo lukestrom round.png"
@@ -179,6 +179,15 @@ URL_GOOGLE_REMOTE_DESKTOP = "https://remotedesktop.google.com/access"
 URL_LINKTREE = "https://linktr.ee/lukestrommusic"
 URL_MTRBIO = "https://t.mtrbio.com/lukestrom"
 URL_YANDEX = "https://yandex.com/"
+CHATGPT_LINKS = [
+    ("Reaper", "https://chatgpt.com/g/g-p-68d65621edf0819180a8e1b3964afba1-reaper/project"),
+    ("Music marketing", "https://chatgpt.com/g/g-p-6928a52f02dc81919c5b4a68247730b3-music-marketing/project"),
+    ("Marketing analysis", "https://chatgpt.com/g/g-p-69242e5fe6ec819191b4772acb2cc0de-music-marketing-analysis/project"),
+    ("Songwriting", "https://chatgpt.com/g/g-p-6953cce5398c8191b90b6957929fd529-songwriting/project"),
+    ("Instrument tech", "https://chatgpt.com/g/g-p-693132401eac8191a3e4f60fc044ceb9-instrument-tech/project"),
+    ("IT & operations", "https://chatgpt.com/g/g-p-690630d67b648191a9537d412e1dd23b-it-operations/project"),
+    ("Video/animation", "https://chatgpt.com/g/g-p-684552aadb348191a668f41fe5eb8582-videography-animation-davinci/project"),
+]
 
 HOME_LINKS = [
     ("DistroKid", URL_DISTROKID),
@@ -482,6 +491,30 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
 
+## V3.9
+- Fixed the embedded Audio L/R meter engine so the VU page can render correctly.
+- The VU grid now expands with the page instead of behaving like a shallow toolbar.
+- Campaign interval number fields now follow dark mode colors.
+- Metrics growth percentages now show whole numbers unless the change is smaller than 1%.
+
+## V3.8
+- Audio L and Audio R are now selectable meters in the same VU grid as Processor, Memory, Disk, Network, GPU, Core temp, and OneDrive activity.
+- The separate Audio VU section was removed from the VU page layout.
+- Campaign Planner interval sliders now include numeric day fields for precise short intervals.
+- Campaign Planner interval sliders were widened for easier use.
+
+## V3.7
+- The Home tile and navigation item were renamed from Audio VU to VU.
+- VU is now the dedicated meter page, combining system meters, OneDrive activity meters, and the Audio VU meters.
+- The VU page has a checkable VU meters menu, including Audio VU.
+- Tools now focuses on tools, system actions, web shortcuts, and file/browser helpers instead of showing meters.
+- A Fullscreen option was added to the hamburger menu.
+- ChatGPT was added to Web shortcuts and opens a dedicated subpage with project tiles.
+- Campaign Planner intervals can now be edited with sliders.
+- Metrics now shows growth percentages versus last week and a Platform MVP card.
+- The misleading Windows ACPI temperature fallback was removed so fixed 28C readings no longer pretend to be real sensor data.
+- Audio VU now shows its audio source selector.
+
 ## V3.6
 - The Tools VU meter grid now compacts after every dropdown change so deselected meters cannot leave empty spaces between visible meters.
 
@@ -711,20 +744,20 @@ Use this when you want a release or posting plan. Enter the song details, number
 ## YouTube Downloader
 Open this from Tools. Use it to download a full YouTube video or only a segment. Paste the link. Leave Start and End empty for the full video, or enter times like 00:30 and 00:45 for a segment. The downloader automatically tries the highest available quality and puts the actual resolution in the filename.
 
-## Audio VU
-Use this when you want two large meters that react to music or video audio playing on the computer. It starts automatically when opened. For YouTube/Chrome system audio, install pycaw and comtypes. Soundcard and sounddevice are used as fallbacks when available. If capture is not available, the page stays safe and tells you what is needed.
+## VU
+Use this when you want live meters. The grid can show system values such as processor, memory, disk, network, GPU, temperature when available, OneDrive upload/download activity, and Audio L/R. The audio meters react to music or video audio playing on the computer when Windows exposes that audio source. Use the VU meters menu to choose which meters are visible.
 
 ## Tools
-Use Tools as the always-open control panel. The VU meters show live system values. Use the VU meters dropdown to choose which meters are visible. Use the OneDrive tile to start or stop syncing, the Outlook tile to close Outlook, the Media Cache tile to delete the video cache after checking its size, and the YT Downloader tile to open the downloader. Web shortcut tiles open creator sites in Chrome.
+Use Tools as the always-open control panel. Use the OneDrive tile to start or stop syncing, the Outlook tile to close Outlook, the Media Cache tile to delete the video cache after checking its size, the YT Downloader tile to open the downloader, Universe to browse your creative files, and Hack Windows for the visual terminal storm. Web shortcut tiles open creator sites in Chrome. The ChatGPT tile opens your project links.
 
 ## Metrics
-Use Metrics to keep weekly reel stats. Choose the Sunday update date with the calendar, enter views and followers per platform, then save the week to Excel. The tables show the newest entries first and the charts show total views and followers over time. Monthly recommendations are read from the configured text file.
+Use Metrics to keep weekly reel stats. Choose the Sunday update date with the calendar, enter views and followers per platform, then save the week to Excel. The summary cards show totals, growth versus last week, and the best performing platform. The tables show the newest entries first and the charts show total views and followers over time. Monthly recommendations are read from the configured text file.
 
 ## Hamburger Menu
 Use the hamburger menu for settings and help. Artwork controls the picture folder, image interval, tile opacity, and VU opacity. Fonts controls custom fonts, basic font mode, font interval, and title size. Metrics controls the Excel file location and can export a starter template. Info sits at the bottom and contains Release notes and this How to.
 
 ## Suggested Workflow
-Start with Song Analyzer or Reel Design while creating content. Use Campaign Planner when a song or reel batch is ready to publish. Open YouTube Downloader from Tools when you need source clips. Use Audio VU when you want visual meters reacting to music. Keep Tools open while working. Update Metrics once a week after your Sunday 20:00 stats check.
+Start with Song Analyzer or Reel Design while creating content. Use Campaign Planner when a song or reel batch is ready to publish. Open YouTube Downloader from Tools when you need source clips. Use VU when you want visual meters reacting to your system and music. Keep Tools open while working. Update Metrics once a week after your Sunday 20:00 stats check.
 """
 APP_ICON_PATH = first_existing_path(
     EXTERNAL_APP_ICON_PATH,
@@ -1531,6 +1564,12 @@ class CreativeToolbox(tk.Tk):
         self.style.configure("TButton", padding=(14, 8), font=("Segoe UI", 10))
         self.style.configure("Accent.TButton", padding=(16, 9), font=("Segoe UI", 10, "bold"))
         self.style.configure("TEntry", padding=6, fieldbackground=colors["entry_bg"], foreground=colors["entry_fg"])
+        self.style.configure("TSpinbox", padding=4, fieldbackground=colors["entry_bg"], foreground=colors["entry_fg"], arrowcolor=colors["text"])
+        self.style.map(
+            "TSpinbox",
+            fieldbackground=[("readonly", colors["entry_bg"]), ("!disabled", colors["entry_bg"])],
+            foreground=[("readonly", colors["entry_fg"]), ("!disabled", colors["entry_fg"])],
+        )
         self.style.configure("NavHome.TButton", padding=(14, 7), font=("Segoe UI", 9), background="#111111", foreground="#ffffff", borderwidth=0)
         self.style.map("NavHome.TButton", background=[("active", "#333333")], foreground=[("active", "#ffffff")])
         self.style.configure("NavLinks.TButton", padding=(12, 7), font=("Segoe UI", 9), background=colors["nav_bg"], foreground=colors["text"], borderwidth=0, focuscolor=colors["nav_bg"])
@@ -1554,7 +1593,7 @@ class CreativeToolbox(tk.Tk):
             ("Song", self.show_song_analyzer),
             ("Reel", self.show_reel_design),
             ("Campaign", self.show_post_planner),
-            ("Audio VU", self.show_audio_vu),
+            ("VU", self.show_audio_vu),
             ("Tools", self.show_tools),
             ("Metrics", self.show_metrics),
         ]
@@ -1580,6 +1619,8 @@ class CreativeToolbox(tk.Tk):
         menu = tk.Menu(self, tearoff=False)
         dark_var = tk.BooleanVar(value=self.dark_mode)
         menu.add_checkbutton(label="Dark mode", variable=dark_var, command=self.toggle_dark_mode)
+        fullscreen_var = tk.BooleanVar(value=bool(self.attributes("-fullscreen")))
+        menu.add_checkbutton(label="Fullscreen", variable=fullscreen_var, command=self.toggle_fullscreen)
         menu.add_separator()
         menu.add_command(label="Artwork", state="disabled")
         menu.add_checkbutton(label="No picture", variable=tk.BooleanVar(value=load_settings().get("tile_background_disabled", False)), command=self.toggle_tile_pictures)
@@ -1614,6 +1655,8 @@ class CreativeToolbox(tk.Tk):
             self.show_home()
         elif isinstance(self.current_page, ToolsPage):
             self.show_tools()
+        elif isinstance(self.current_page, VuPage):
+            self.show_audio_vu()
 
     def toggle_basic_font(self):
         settings = load_settings()
@@ -1632,6 +1675,9 @@ class CreativeToolbox(tk.Tk):
         self._setup_style()
         self.refresh_current_page()
 
+    def toggle_fullscreen(self):
+        self.attributes("-fullscreen", not bool(self.attributes("-fullscreen")))
+
     def refresh_current_page(self):
         current = self.current_page
         if isinstance(current, SongAnalyzerPage):
@@ -1642,7 +1688,7 @@ class CreativeToolbox(tk.Tk):
             self.show_post_planner()
         elif isinstance(current, YouTubeDownloaderPage):
             self.show_youtube_downloader()
-        elif isinstance(current, AudioVuPage):
+        elif isinstance(current, VuPage):
             self.show_audio_vu()
         elif isinstance(current, ToolsPage):
             self.show_tools()
@@ -1683,6 +1729,8 @@ class CreativeToolbox(tk.Tk):
             self.show_home()
         elif isinstance(self.current_page, ToolsPage):
             self.show_tools()
+        elif isinstance(self.current_page, VuPage):
+            self.show_audio_vu()
 
     def choose_font_folder(self):
         initial_dir = get_tile_font_dir() or Path.home()
@@ -1740,6 +1788,8 @@ class CreativeToolbox(tk.Tk):
             window.destroy()
             if isinstance(self.current_page, HomePage):
                 self.show_home()
+            elif isinstance(self.current_page, VuPage):
+                self.show_audio_vu()
 
         ttk.Button(buttons, text="OK", command=save_interval, style="Accent.TButton").pack(side="left", fill="x", expand=True)
         ttk.Button(buttons, text="Cancel", command=window.destroy).pack(side="left", fill="x", expand=True, padx=(10, 0))
@@ -1782,7 +1832,7 @@ class CreativeToolbox(tk.Tk):
             settings[setting_key] = int(float(scale.get()))
             save_settings(settings)
             window.destroy()
-            if isinstance(self.current_page, (HomePage, ToolsPage, AudioVuPage)):
+            if isinstance(self.current_page, (HomePage, ToolsPage, VuPage)):
                 self.refresh_current_page()
 
         ttk.Button(buttons, text="OK", command=save_opacity, style="Accent.TButton").pack(side="left", fill="x", expand=True)
@@ -2252,8 +2302,8 @@ class CreativeToolbox(tk.Tk):
 
     def show_audio_vu(self):
         self.clear_content()
-        self.set_page_title("Audio VU")
-        self.current_page = AudioVuPage(self.content, self)
+        self.set_page_title("VU")
+        self.current_page = VuPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_song_analyzer(self):
@@ -2673,7 +2723,6 @@ def get_gpu_usage_percent():
 def get_core_temperature_celsius():
     scripts = [
         "$s=Get-CimInstance -Namespace root/OpenHardwareMonitor -Class Sensor -ErrorAction SilentlyContinue | Where-Object {$_.SensorType -eq 'Temperature' -and ($_.Name -like '*CPU*' -or $_.Name -like '*Core*' -or $_.Name -like '*Package*')} | Sort-Object Value -Descending | Select-Object -First 1; if ($s) {$s.Value}",
-        "$t=Get-CimInstance -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Select-Object -First 1; if ($t) {($t.CurrentTemperature / 10) - 273.15}",
     ]
     for script in scripts:
         value = powershell_float(script)
@@ -2774,35 +2823,6 @@ class ToolsPage(ttk.Frame):
         title_row = ttk.Frame(main, style="Panel.TFrame")
         title_row.pack(fill="x", pady=(0, 14))
         ttk.Label(title_row, text="Tools", style="CardTitle.TLabel").pack(side="left")
-        meter_button = ttk.Menubutton(title_row, text="VU meters")
-        meter_button.pack(side="left", padx=(10, 0))
-        meter_menu = tk.Menu(meter_button, tearoff=False)
-        meter_button.configure(menu=meter_menu)
-        for key, config in PERFORMANCE_METER_OPTIONS.items():
-            var = tk.BooleanVar(value=True)
-            self.meter_vars[key] = var
-            meter_menu.add_checkbutton(label=config["title"], variable=var, command=self.layout_performance_meters)
-
-        performance = ttk.Frame(main, style="Panel.TFrame")
-        self.performance_container = performance
-        performance.pack(fill="x", pady=(0, 18))
-        for index, key in enumerate(PERFORMANCE_METER_OPTIONS.keys()):
-            config = PERFORMANCE_METER_OPTIONS[key]
-            col = index % 3
-            performance.columnconfigure(col, weight=1, uniform="meters")
-            canvas = tk.Canvas(performance, height=220, bg=self.app.colors["panel_bg"], highlightthickness=1, highlightbackground=self.app.colors["border"])
-            canvas.slot_key = key
-            canvas.meter_title = config["title"]
-            canvas.meter_unit = config["unit"]
-            canvas.meter_maximum = config["maximum"]
-            canvas.meter_color = config["color"]
-            canvas.meter_peak_ratio = 0
-            canvas.meter_peak_time = 0
-            canvas.meter_subtext = ""
-            self.performance_canvases[key] = canvas
-            self.draw_vu_meter(canvas, None)
-            self.rotate_meter_background(canvas)
-        self.layout_performance_meters()
 
         system_title = ttk.Frame(main, style="Panel.TFrame")
         system_title.pack(fill="x", pady=(0, 12))
@@ -2838,12 +2858,12 @@ class ToolsPage(ttk.Frame):
         grid.bind("<Configure>", lambda _event: self.draw_pane_background(grid))
         shortcuts = [
             {"title": "Open all", "icon_domain": "google.com", "icon": "links", "color": "#202124", "command": self.app.open_all_links, "action": "Open core links"},
+            {"title": "ChatGPT", "icon_domain": "chatgpt.com", "icon": "note", "color": "#10a37f", "command": self.open_chatgpt_links, "action": "Open projects"},
             *WEB_SHORTCUTS,
         ]
         for index, shortcut in enumerate(shortcuts):
             self.create_web_tile(grid, index // 3, index % 3, shortcut)
         self.refresh()
-        self.refresh_performance()
         self.refresh_onedrive_activity()
 
     def destroy(self):
@@ -2865,6 +2885,9 @@ class ToolsPage(ttk.Frame):
             return
         for canvas in self.performance_canvases.values():
             canvas.grid_forget()
+        for canvas in (getattr(self, "audio_left_canvas", None), getattr(self, "audio_right_canvas", None)):
+            if canvas is not None:
+                canvas.grid_forget()
         for column in range(3):
             self.performance_container.columnconfigure(column, weight=1, uniform="meters", minsize=0)
         for row in range(6):
@@ -3391,6 +3414,12 @@ class ToolsPage(ttk.Frame):
         canvas.bind("<Button-1>", open_shortcut)
         card.bind("<Button-1>", open_shortcut)
 
+    def open_chatgpt_links(self):
+        self.app.clear_content()
+        self.app.set_page_title("ChatGPT")
+        self.app.current_page = ChatGPTLinksPage(self.app.content, self.app, self.app.show_tools)
+        self.app.current_page.pack(fill="both", expand=True)
+
     def refresh(self):
         self.update_onedrive_widgets()
 
@@ -3401,6 +3430,172 @@ class ToolsPage(ttk.Frame):
             self.cache_status_var.set("Folder not found")
         self.update_action_tile("cache", status=self.cache_status_var.get(), action_text="Click to delete")
         self.update_action_tile("outlook", status="Close outlook.exe", action_text="Click to kill")
+
+
+class VuPage(ttk.Frame):
+    def __init__(self, parent, app):
+        super().__init__(parent)
+        self.app = app
+        self.meter_background_paths = find_tile_backgrounds()
+        self.meter_jobs = []
+        self.performance_canvases = {}
+        self.performance_display_values = {}
+        self.performance_running = True
+        self.performance_collecting = False
+        self.meter_vars = {}
+        self.audio_left_var = tk.BooleanVar(value=True)
+        self.audio_right_var = tk.BooleanVar(value=True)
+        self.performance_container = None
+        self.audio_page = None
+        self._build()
+        self.refresh_performance()
+
+    def _build(self):
+        outer = ScrollFrame(self)
+        outer.pack(fill="both", expand=True, pady=(0, 14))
+        outer.canvas.configure(bg=self.app.colors["panel_bg"], highlightthickness=0)
+        outer.body.configure(style="Panel.TFrame")
+        outer.set_auto_scrollbar(True)
+
+        main = ttk.Frame(outer.body, style="Panel.TFrame", padding=18)
+        main.pack(fill="both", expand=True)
+        header = ttk.Frame(main, style="Panel.TFrame")
+        header.pack(fill="x", pady=(0, 14))
+        ttk.Label(header, text="VU", style="CardTitle.TLabel").pack(side="left")
+        meter_button = ttk.Menubutton(header, text="VU meters")
+        meter_button.pack(side="left", padx=(10, 0))
+        meter_menu = tk.Menu(meter_button, tearoff=False)
+        meter_button.configure(menu=meter_menu)
+        for key, config in PERFORMANCE_METER_OPTIONS.items():
+            var = tk.BooleanVar(value=True)
+            self.meter_vars[key] = var
+            meter_menu.add_checkbutton(label=config["title"], variable=var, command=self.layout_meters)
+        meter_menu.add_separator()
+        meter_menu.add_checkbutton(label="Audio L", variable=self.audio_left_var, command=self.layout_meters)
+        meter_menu.add_checkbutton(label="Audio R", variable=self.audio_right_var, command=self.layout_meters)
+        audio_controls = ttk.Frame(header, style="Panel.TFrame")
+        audio_controls.pack(side="left", fill="x", expand=True, padx=(14, 0))
+
+        performance = ttk.Frame(main, style="Panel.TFrame")
+        self.performance_container = performance
+        performance.pack(fill="both", expand=True, pady=(0, 18))
+        for key, config in PERFORMANCE_METER_OPTIONS.items():
+            canvas = tk.Canvas(performance, height=220, bg=self.app.colors["panel_bg"], highlightthickness=1, highlightbackground=self.app.colors["border"])
+            canvas.slot_key = key
+            canvas.meter_title = config["title"]
+            canvas.meter_unit = config["unit"]
+            canvas.meter_maximum = config["maximum"]
+            canvas.meter_color = config["color"]
+            canvas.meter_peak_ratio = 0
+            canvas.meter_peak_time = 0
+            canvas.meter_subtext = ""
+            self.performance_canvases[key] = canvas
+            canvas.bind("<Configure>", lambda _event=None, c=canvas: self.draw_vu_meter(c, self.performance_display_values.get(c.slot_key)))
+            self.draw_vu_meter(canvas, None)
+            self.rotate_meter_background(canvas)
+
+        self.audio_left_canvas = tk.Canvas(performance, height=220, bg=self.app.colors["panel_bg"], highlightthickness=0, bd=0)
+        self.audio_right_canvas = tk.Canvas(performance, height=220, bg=self.app.colors["panel_bg"], highlightthickness=0, bd=0)
+        self.audio_left_canvas.slot_key = "audio_left"
+        self.audio_right_canvas.slot_key = "audio_right"
+        self.audio_page = AudioVuPage(
+            self,
+            self.app,
+            embedded_canvases=(self.audio_left_canvas, self.audio_right_canvas),
+            controls_parent=audio_controls,
+        )
+        self.layout_meters()
+
+    def destroy(self):
+        self.performance_running = False
+        for job in self.meter_jobs:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+        if self.audio_page is not None and self.audio_page.winfo_exists():
+            try:
+                self.audio_page.destroy()
+            except Exception:
+                pass
+        super().destroy()
+
+    def layout_meters(self):
+        if self.performance_container is None:
+            return
+        for canvas in self.performance_canvases.values():
+            canvas.grid_forget()
+        for column in range(3):
+            self.performance_container.columnconfigure(column, weight=1, uniform="meters", minsize=0)
+        visible = [key for key in PERFORMANCE_METER_OPTIONS if self.meter_vars.get(key, tk.BooleanVar(value=True)).get()]
+        if self.audio_left_var.get():
+            visible.append("audio_left")
+        if self.audio_right_var.get():
+            visible.append("audio_right")
+        row_count = max(1, (len(visible) + 2) // 3)
+        for row in range(6):
+            self.performance_container.rowconfigure(row, weight=1 if row < row_count else 0, minsize=0)
+        for index, key in enumerate(visible):
+            canvas = self.performance_canvases.get(key)
+            if key == "audio_left":
+                canvas = self.audio_left_canvas
+            elif key == "audio_right":
+                canvas = self.audio_right_canvas
+            if canvas is None:
+                continue
+            row = index // 3
+            col = index % 3
+            canvas.grid(row=row, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0), pady=(0 if row == 0 else 8, 0))
+
+    def rotate_meter_background(self, canvas):
+        if not self.performance_running or not canvas.winfo_exists():
+            return
+        canvas.meter_background_path = random.choice(self.meter_background_paths) if self.meter_background_paths else None
+        canvas.meter_face_signature = None
+        self.draw_vu_meter(canvas, self.performance_display_values.get(canvas.slot_key))
+        job = self.after(get_tile_picture_interval_seconds() * 1000, lambda: self.rotate_meter_background(canvas))
+        self.meter_jobs.append(job)
+
+    def draw_vu_meter(self, canvas, value):
+        ToolsPage.draw_vu_meter(self, canvas, value)
+
+    def refresh_performance(self):
+        if not self.performance_running or not self.winfo_exists():
+            return
+        if self.performance_collecting:
+            self.after(500, self.refresh_performance)
+            return
+        self.performance_collecting = True
+
+        def worker():
+            try:
+                snapshot = collect_performance_snapshot()
+            except Exception:
+                snapshot = {}
+
+            def finish():
+                self.performance_collecting = False
+                if self.performance_running and self.winfo_exists():
+                    self.update_performance(snapshot)
+
+            if self.performance_running and self.winfo_exists():
+                self.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(500, self.refresh_performance)
+
+    def update_performance(self, snapshot):
+        for slot_key, canvas in self.performance_canvases.items():
+            if slot_key in ("onedrive_upload", "onedrive_download"):
+                canvas.meter_subtext = snapshot.get(f"{slot_key}_label", "No active file detected")
+            new_value = snapshot.get(slot_key)
+            previous = self.performance_display_values.get(slot_key)
+            if previous is None or new_value is None:
+                display_value = new_value
+            else:
+                display_value = previous + (new_value - previous) * 0.55
+            self.performance_display_values[slot_key] = display_value
+            self.draw_vu_meter(canvas, display_value)
 
 
 class FolderBrowserPage(ttk.Frame):
@@ -3533,6 +3728,61 @@ class FolderBrowserPage(ttk.Frame):
             messagebox.showerror("Could not open File Explorer", str(exc))
 
 
+class ChatGPTLinksPage(ttk.Frame):
+    def __init__(self, parent, app, back_command):
+        super().__init__(parent)
+        self.app = app
+        self.back_command = back_command
+        self._build()
+
+    def _build(self):
+        shell = ttk.Frame(self, style="Panel.TFrame", padding=18)
+        shell.pack(fill="both", expand=True)
+        header = ttk.Frame(shell, style="Panel.TFrame")
+        header.pack(fill="x", pady=(0, 14))
+        ttk.Label(header, text="ChatGPT links", style="CardTitle.TLabel").pack(side="left")
+        ttk.Button(header, text="Back", command=self.back_command).pack(side="right")
+
+        scroller = ScrollFrame(shell)
+        scroller.pack(fill="both", expand=True)
+        scroller.canvas.configure(bg=self.app.colors["panel_bg"], highlightthickness=0)
+        scroller.body.configure(style="Panel.TFrame")
+        scroller.set_auto_scrollbar(True)
+
+        grid = scroller.body
+        for col in range(3):
+            grid.columnconfigure(col, weight=1, uniform="chatgpt")
+        for index, (title, url) in enumerate(CHATGPT_LINKS):
+            self.create_chatgpt_tile(grid, index // 3, index % 3, title, url)
+
+    def create_chatgpt_tile(self, parent, row, column, title, url):
+        card = tk.Canvas(parent, height=126, highlightthickness=0, bg=self.app.colors["panel_bg"], cursor="hand2")
+        card.grid(row=row, column=column, sticky="nsew", padx=6, pady=6)
+
+        def draw(_event=None):
+            card.delete("all")
+            width = max(230, card.winfo_width())
+            height = max(126, card.winfo_height())
+            color = "#10a37f"
+            rounded_rect(card, 0, 0, width, height, radius=10, fill=self.app.colors["panel_bg"], outline=self.app.colors["border"])
+            rounded_rect(card, 0, 0, width, 34, radius=10, fill=color, outline="")
+            card.create_rectangle(0, 22, width, 34, fill=color, outline="")
+            rounded_rect(card, 16, 50, 82, height - 18, radius=10, fill=color, outline="")
+            icon = load_tile_icon_image(favicon_url_for_domain("chatgpt.com", 64), 42)
+            if icon is not None:
+                card.icon_ref = icon
+                card.create_oval(26, 58, 72, 104, fill="#ffffff", outline="")
+                card.create_image(49, 81, image=icon, anchor="center")
+            else:
+                card.create_text(49, 81, text="AI", fill="#ffffff", font=("Segoe UI", 17, "bold"))
+            card.create_text(102, 54, text=title, fill=self.app.colors["text"], anchor="nw", font=("Segoe UI", 12, "bold"), width=max(120, width - 118))
+            card.create_text(102, 84, text="Open in Chrome", fill=self.app.colors["muted"], anchor="nw", font=("Segoe UI", 9))
+
+        card.bind("<Configure>", draw)
+        card.bind("<Button-1>", lambda _event=None: self.app.open_in_chrome(url))
+        draw()
+
+
 class PerformanceVuWindow(tk.Toplevel):
     def __init__(self, app):
         super().__init__(app)
@@ -3655,7 +3905,7 @@ class HomePage(ttk.Frame):
         self._tile(tiles, 0, 0, "Song Analyzer", self.app.show_song_analyzer, "#2f6f73")
         self._tile(tiles, 0, 1, "Reel Design", self.app.show_reel_design, "#7b5f2a")
         self._tile(tiles, 0, 2, "Campaign Planner", self.app.show_post_planner, "#4f6f8f")
-        self._tile(tiles, 1, 0, "Audio VU", self.app.show_audio_vu, "#8d3f3f")
+        self._tile(tiles, 1, 0, "VU", self.app.show_audio_vu, "#8d3f3f")
         self._tile(tiles, 1, 1, "Tools", self.app.show_tools, "#5b6770")
         self._tile(tiles, 1, 2, "Metrics", self.app.show_metrics, "#5b6770")
 
@@ -3804,9 +4054,11 @@ class HomePage(ttk.Frame):
 
 
 class AudioVuPage(ttk.Frame):
-    def __init__(self, parent, app):
+    def __init__(self, parent, app, embedded_canvases=None, controls_parent=None):
         super().__init__(parent)
         self.app = app
+        self.embedded_canvases = embedded_canvases
+        self.controls_parent = controls_parent
         self.background_paths = find_tile_backgrounds()
         self.running = True
         self.stream = None
@@ -3830,6 +4082,32 @@ class AudioVuPage(ttk.Frame):
         self._build()
 
     def _build(self):
+        if self.embedded_canvases is not None:
+            self.left_canvas, self.right_canvas = self.embedded_canvases
+            self.left_canvas.vu_title = "L"
+            self.right_canvas.vu_title = "R"
+            self.audio_title_var = tk.StringVar(value="Audio VU")
+            self.left_canvas.bind("<Configure>", lambda _event=None: self.draw_audio_meter(self.left_canvas, self.display_left))
+            self.right_canvas.bind("<Configure>", lambda _event=None: self.draw_audio_meter(self.right_canvas, self.display_right))
+            controls = self.controls_parent or self
+            ttk.Label(controls, text="Audio source", style="CardText.TLabel").pack(side="left", padx=(0, 6))
+            self.status_var = tk.StringVar(value="")
+            self.engine_var = tk.StringVar(value="")
+            self.source_list = tk.Listbox(controls, height=1, activestyle="none", exportselection=False, font=("Segoe UI", 9), width=38)
+            self.source_list.configure(
+                bg=self.app.colors["entry_bg"],
+                fg=self.app.colors["entry_fg"],
+                selectbackground="#4f6f8f",
+                selectforeground="#ffffff",
+                highlightbackground=self.app.colors["border"],
+            )
+            self.source_list.pack(side="left", fill="x", expand=True)
+            self.source_list.bind("<<ListboxSelect>>", self.on_audio_source_select)
+            self.rotate_backgrounds()
+            self.start_audio()
+            self.update_meters()
+            return
+
         shell = ttk.Frame(self, style="Panel.TFrame", padding=18)
         shell.pack(fill="both", expand=True, pady=(0, 14))
         header = ttk.Frame(shell, style="Panel.TFrame")
@@ -3861,6 +4139,8 @@ class AudioVuPage(ttk.Frame):
             highlightbackground=self.app.colors["border"],
         )
         self.source_list.bind("<<ListboxSelect>>", self.on_audio_source_select)
+        ttk.Label(shell, text="Audio source", style="CardText.TLabel").pack(anchor="w", pady=(0, 4))
+        self.source_list.pack(fill="x", pady=(0, 12))
         self.rotate_backgrounds()
         self.start_audio()
         self.update_meters()
@@ -4639,6 +4919,7 @@ class CampaignPlannerPage(ttk.Frame):
         ttk.Entry(schedule_row, textvariable=self.start_date_var, width=14).pack(side="left", padx=(8, 8))
         ttk.Button(schedule_row, text="Calendar", command=self.open_start_calendar).pack(side="left", padx=(0, 14))
         ttk.Checkbutton(schedule_row, text="Default intervals", variable=self.default_intervals_var, command=self.on_default_intervals_changed).pack(side="left")
+        ttk.Button(schedule_row, text="Edit intervals", command=self.open_interval_editor).pack(side="left", padx=(8, 0))
 
         ttk.Label(top, text="Song Description", style="CardText.TLabel").grid(row=4, column=0, sticky="w")
         self.song_description_box = tk.Text(top, height=4, wrap="word", font=("Segoe UI", 10), padx=8, pady=8)
@@ -4741,7 +5022,7 @@ class CampaignPlannerPage(ttk.Frame):
 
         window = tk.Toplevel(self)
         window.title("Campaign intervals")
-        window.geometry("460x520")
+        window.geometry("760x560")
         window.transient(self)
 
         shell = ttk.Frame(window, style="Panel.TFrame", padding=14)
@@ -4750,6 +5031,8 @@ class CampaignPlannerPage(ttk.Frame):
 
         body = ttk.Frame(shell, style="Panel.TFrame")
         body.pack(fill="both", expand=True)
+        body.columnconfigure(2, weight=1)
+        body.columnconfigure(6, weight=1)
         post_vars = []
         repost_vars = []
 
@@ -4757,15 +5040,19 @@ class CampaignPlannerPage(ttk.Frame):
         for index in range(post_count):
             ttk.Label(body, text=f"Post {index + 1}", style="CardText.TLabel").grid(row=index + 1, column=0, sticky="w", pady=3)
             var = tk.IntVar(value=self.post_offsets[index])
-            ttk.Spinbox(body, from_=0, to=365, textvariable=var, width=8).grid(row=index + 1, column=1, sticky="w", pady=3)
+            ttk.Spinbox(body, from_=0, to=365, textvariable=var, width=7).grid(row=index + 1, column=1, sticky="w", pady=3)
+            scale = ttk.Scale(body, from_=0, to=365, orient="horizontal", variable=var, length=260, command=lambda value, v=var: v.set(int(float(value))))
+            scale.grid(row=index + 1, column=2, sticky="ew", pady=3, padx=(8, 0))
             post_vars.append(var)
 
-        col_offset = 3
+        col_offset = 4
         ttk.Label(body, text="Repost rounds", style="CardText.TLabel").grid(row=0, column=col_offset, sticky="w", pady=(0, 6), padx=(22, 0))
         for index in range(repost_count):
             ttk.Label(body, text=f"Repost {index + 1}", style="CardText.TLabel").grid(row=index + 1, column=col_offset, sticky="w", padx=(22, 0), pady=3)
             var = tk.IntVar(value=self.repost_offsets[index])
-            ttk.Spinbox(body, from_=0, to=730, textvariable=var, width=8).grid(row=index + 1, column=col_offset + 1, sticky="w", pady=3)
+            ttk.Spinbox(body, from_=0, to=730, textvariable=var, width=7).grid(row=index + 1, column=col_offset + 1, sticky="w", pady=3)
+            scale = ttk.Scale(body, from_=0, to=730, orient="horizontal", variable=var, length=260, command=lambda value, v=var: v.set(int(float(value))))
+            scale.grid(row=index + 1, column=col_offset + 2, sticky="ew", pady=3, padx=(8, 0))
             repost_vars.append(var)
 
         buttons = ttk.Frame(shell, style="Panel.TFrame")
@@ -4987,6 +5274,37 @@ class MetricsPage(ttk.Frame):
             self.platform_canvas.grid(row=1, column=0, sticky="nsew", padx=(0, 6))
             self.recommendations_panel.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
 
+    def growth_text(self, current, previous):
+        try:
+            current = float(current)
+            previous = float(previous)
+        except Exception:
+            return "no previous week"
+        if previous <= 0:
+            return "new baseline" if current > 0 else "no change"
+        growth = (current - previous) * 100 / previous
+        sign = "+" if growth >= 0 else ""
+        if 0 < abs(growth) < 1:
+            growth_text = f"{sign}{growth:.1f}%"
+        else:
+            growth_text = f"{sign}{growth:.0f}%"
+        return f"{growth_text} vs last week"
+
+    def platform_mvp(self):
+        if not self.rows:
+            return ("Platform MVP", "n/a", "no data yet")
+        latest = self.rows[-1]
+        platforms = [
+            ("TikTok", latest["tt_views"]),
+            ("Instagram", latest["ig_views"]),
+            ("YouTube", latest["yt_views"]),
+            ("Facebook", latest["fb_views"]),
+        ]
+        name, value = max(platforms, key=lambda item: item[1])
+        total = sum(value for _name, value in platforms)
+        share = 0 if total <= 0 else value * 100 / total
+        return ("Platform MVP", name, f"{value:,} views | {share:.0f}% of weekly traffic")
+
     def refresh(self):
         for widget in self.summary.winfo_children():
             widget.destroy()
@@ -4999,19 +5317,26 @@ class MetricsPage(ttk.Frame):
 
         self.prefill_next_week()
         latest = self.totals[-1] if self.totals else None
+        previous = self.totals[-2] if len(self.totals) >= 2 else None
+        latest_week_views = sum((self.rows[-1][f"{p}_views"] for p in ("tt", "ig", "yt", "fb")), 0) if self.rows else 0
+        previous_week_views = sum((self.rows[-2][f"{p}_views"] for p in ("tt", "ig", "yt", "fb")), 0) if len(self.rows) >= 2 else 0
+        _mvp_title, mvp_name, mvp_detail = self.platform_mvp()
         cards = [
-            ("Weeks", len(self.rows)),
-            ("Total views", latest["total_views"] if latest else 0),
-            ("Followers", latest["total_followers"] if latest else 0),
-            ("Last week views", sum((self.rows[-1][f"{p}_views"] for p in ("tt", "ig", "yt", "fb")), 0) if self.rows else 0),
+            ("Weeks", len(self.rows), "tracked entries"),
+            ("Total views", latest["total_views"] if latest else 0, self.growth_text(latest["total_views"] if latest else 0, previous["total_views"] if previous else 0)),
+            ("Followers", latest["total_followers"] if latest else 0, self.growth_text(latest["total_followers"] if latest else 0, previous["total_followers"] if previous else 0)),
+            ("Last week views", latest_week_views, self.growth_text(latest_week_views, previous_week_views)),
+            ("Platform MVP", mvp_name, mvp_detail),
         ]
-        for col in range(4):
+        for col in range(len(cards)):
             self.summary.columnconfigure(col, weight=1, uniform="summary")
-        for index, (title, value) in enumerate(cards):
+        for index, (title, value, detail) in enumerate(cards):
             card = ttk.Frame(self.summary, style="Panel.TFrame", padding=12)
             card.grid(row=0, column=index, sticky="ew", padx=(0 if index == 0 else 6, 0 if index == len(cards) - 1 else 6))
             ttk.Label(card, text=title, style="CardText.TLabel").pack(anchor="w")
-            ttk.Label(card, text=f"{value:,}", font=("Segoe UI", 18, "bold"), background=self.app.colors["panel_bg"], foreground=self.app.colors["text"]).pack(anchor="w")
+            value_text = f"{value:,}" if isinstance(value, (int, float)) else str(value)
+            ttk.Label(card, text=value_text, font=("Segoe UI", 18, "bold"), background=self.app.colors["panel_bg"], foreground=self.app.colors["text"]).pack(anchor="w")
+            ttk.Label(card, text=detail, style="CardText.TLabel").pack(anchor="w")
 
         self.draw_table()
         self.draw_followers_table()
