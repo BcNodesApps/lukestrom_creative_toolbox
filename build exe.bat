@@ -1,4 +1,37 @@
 @echo off
+setlocal EnableExtensions
+
+echo.
+echo Updating Git before EXE build...
+
+cd /d "C:\appdevelopment\toolbox\codex"
+
+for /f "tokens=2 delims==" %%V in ('findstr /B "APP_VERSION" creative_toolbox.py') do set "APPVER=%%~V"
+set "APPVER=%APPVER:"=%"
+set "APPVER=%APPVER: =%"
+
+for /f "tokens=1-5 delims=/.:, " %%a in ("%DATE% %TIME%") do (
+    set "NOW=%DATE% %TIME:~0,5%"
+)
+
+git add .
+
+git diff --cached --quiet
+if %ERRORLEVEL% EQU 0 (
+    echo No Git changes to commit.
+) else (
+    git commit -m "%NOW% %APPVER%"
+)
+
+git push
+
+echo.
+echo Git update done. Continuing EXE build...
+echo.
+
+REM hieronder laat je de bestaande build-code staan
+
+@echo off
 setlocal
 
 cd /d "%~dp0"
