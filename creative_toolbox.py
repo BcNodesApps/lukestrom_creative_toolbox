@@ -67,7 +67,7 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V3.9"
+APP_VERSION = "V4.2"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
 APP_ICON_FILENAME = "260414 logo lukestrom round.png"
@@ -474,6 +474,15 @@ def export_metrics_template(output_path):
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", fgColor="2F6F73")
 
+    monthly = wb.create_sheet("Monthly")
+    monthly.append(MONTHLY_HEADERS)
+    widths = [12] + [20] * 16 + [42, 42]
+    for index, width in enumerate(widths, start=1):
+        monthly.column_dimensions[chr(64 + index) if index <= 26 else "Z"].width = width
+    for cell in monthly[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="7B5F2A")
+
     wb.save(output_path)
 
 
@@ -490,6 +499,25 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 ## Current version
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
+
+## V4.2
+- Monthly worksheet detection is now case-insensitive, so monthly, Monthly, and MONTHLY all work.
+- Universe opens in the app window again, now defaulting to a cleaner list-style file browser.
+
+## V4.1
+- Fixed the VU page startup by initializing the meter availability/dropdown state.
+- VU meters no longer become permanently unchecked after a temporary n/a reading.
+
+## V4.0
+- VU meters now use all available vertical space and reflow dynamically when meters are selected or deselected.
+- If a performance meter has no available value, it is hidden from the grid and disabled in the VU meters menu.
+- The fullscreen toggle now maximizes/restores on the current screen instead of using exclusive fullscreen.
+- Hack Windows was removed from the Tools UI to avoid unnecessary CPU load.
+- Metrics now treats weekly views as period-based weekly impressions, not cumulative lifetime totals.
+- Cumulative Total Views and the Total Views Over Time chart were removed.
+- A Monthly worksheet is supported for monthly impressions, followers, posts, interactions, Dashboard Summary, and Next Month Focus.
+- Monthly KPI cards and monthly platform line charts were added.
+- Monthly Summary now reads from the Monthly worksheet instead of a separate recommendations text file.
 
 ## V3.9
 - Fixed the embedded Audio L/R meter engine so the VU page can render correctly.
@@ -748,10 +776,10 @@ Open this from Tools. Use it to download a full YouTube video or only a segment.
 Use this when you want live meters. The grid can show system values such as processor, memory, disk, network, GPU, temperature when available, OneDrive upload/download activity, and Audio L/R. The audio meters react to music or video audio playing on the computer when Windows exposes that audio source. Use the VU meters menu to choose which meters are visible.
 
 ## Tools
-Use Tools as the always-open control panel. Use the OneDrive tile to start or stop syncing, the Outlook tile to close Outlook, the Media Cache tile to delete the video cache after checking its size, the YT Downloader tile to open the downloader, Universe to browse your creative files, and Hack Windows for the visual terminal storm. Web shortcut tiles open creator sites in Chrome. The ChatGPT tile opens your project links.
+Use Tools as the always-open control panel. Use the OneDrive tile to start or stop syncing, the Outlook tile to close Outlook, the Media Cache tile to delete the video cache after checking its size, the YT Downloader tile to open the downloader, and Universe to browse your creative files. Web shortcut tiles open creator sites in Chrome. The ChatGPT tile opens your project links.
 
 ## Metrics
-Use Metrics to keep weekly reel stats. Choose the Sunday update date with the calendar, enter views and followers per platform, then save the week to Excel. The summary cards show totals, growth versus last week, and the best performing platform. The tables show the newest entries first and the charts show total views and followers over time. Monthly recommendations are read from the configured text file.
+Use Metrics to keep weekly operational stats and monthly strategic stats. Weekly answers what happened this week: enter impressions and followers per platform, then save the week to Excel. Monthly answers how the project is developing over time: fill the Monthly worksheet with Metricool report values and ChatGPT analysis. The dashboard shows weekly impressions, weekly followers, platform MVP, monthly KPI cards, monthly trend charts, Dashboard Summary, and Next Month Focus.
 
 ## Hamburger Menu
 Use the hamburger menu for settings and help. Artwork controls the picture folder, image interval, tile opacity, and VU opacity. Fonts controls custom fonts, basic font mode, font interval, and title size. Metrics controls the Excel file location and can export a starter template. Info sits at the bottom and contains Release notes and this How to.
@@ -1223,15 +1251,10 @@ def load_metrics_rows():
 
 def metrics_totals(rows):
     totals = []
-    running = {"tt": 0, "ig": 0, "yt": 0, "fb": 0}
     for row in rows:
-        running["tt"] += row["tt_views"]
-        running["ig"] += row["ig_views"]
-        running["yt"] += row["yt_views"]
-        running["fb"] += row["fb_views"]
-        total_views = sum(running.values())
+        total_views = row["tt_views"] + row["ig_views"] + row["yt_views"] + row["fb_views"]
         total_followers = row["tt_followers"] + row["ig_followers"] + row["yt_followers"] + row["fb_followers"]
-        totals.append({**row, "total_views": total_views, "total_followers": total_followers, **{f"{k}_total": v for k, v in running.items()}})
+        totals.append({**row, "total_views": total_views, "total_impressions": total_views, "total_followers": total_followers})
     return totals
 
 
@@ -1268,6 +1291,70 @@ def append_metrics_row(values):
     ws.cell(next_row, 13).value = values["fb_views"]
     ws.cell(next_row, 14).value = values["fb_followers"]
     wb.save(workbook_path)
+
+
+MONTHLY_HEADERS = [
+    "Month",
+    "Facebook Impressions", "Instagram Impressions", "TikTok Impressions", "YouTube Impressions",
+    "Facebook Followers", "Instagram Followers", "TikTok Followers", "YouTube Followers",
+    "Facebook Posts", "Instagram Posts", "TikTok Posts", "YouTube Posts",
+    "Facebook Interactions", "Instagram Interactions", "TikTok Interactions", "YouTube Interactions",
+    "Dashboard Summary", "Next Month Focus",
+]
+
+
+def ensure_monthly_worksheet(wb):
+    monthly_name = next((name for name in wb.sheetnames if name.lower() == "monthly"), None)
+    ws = wb[monthly_name] if monthly_name else wb.create_sheet("Monthly")
+    if ws.max_row == 1 and ws.cell(1, 1).value is None:
+        for index, header in enumerate(MONTHLY_HEADERS, start=1):
+            ws.cell(1, index).value = header
+    return ws
+
+
+def load_monthly_rows():
+    try:
+        from openpyxl import load_workbook
+    except Exception:
+        return []
+
+    workbook_path = get_metrics_workbook_path()
+    if not workbook_path.exists():
+        return []
+    try:
+        wb_edit = load_workbook(workbook_path)
+        if not any(name.lower() == "monthly" for name in wb_edit.sheetnames):
+            ensure_monthly_worksheet(wb_edit)
+            wb_edit.save(workbook_path)
+        wb_edit.close()
+    except Exception:
+        pass
+    wb = load_workbook(workbook_path, data_only=True)
+    ws = ensure_monthly_worksheet(wb)
+    if ws.max_row <= 1:
+        return []
+
+    rows = []
+    keys = [
+        "month",
+        "fb_impressions", "ig_impressions", "tt_impressions", "yt_impressions",
+        "fb_followers", "ig_followers", "tt_followers", "yt_followers",
+        "fb_posts", "ig_posts", "tt_posts", "yt_posts",
+        "fb_interactions", "ig_interactions", "tt_interactions", "yt_interactions",
+        "dashboard_summary", "next_month_focus",
+    ]
+    for values in ws.iter_rows(min_row=2, max_col=len(keys), values_only=True):
+        if not values or values[0] in (None, ""):
+            continue
+        row = {}
+        for key, value in zip(keys, values):
+            if key in ("month", "dashboard_summary", "next_month_focus"):
+                row[key] = "" if value is None else str(value)
+            else:
+                row[key] = int(value or 0)
+        rows.append(row)
+    rows.sort(key=lambda item: item["month"])
+    return rows
 
 
 def format_ics_datetime(dt):
@@ -1619,7 +1706,7 @@ class CreativeToolbox(tk.Tk):
         menu = tk.Menu(self, tearoff=False)
         dark_var = tk.BooleanVar(value=self.dark_mode)
         menu.add_checkbutton(label="Dark mode", variable=dark_var, command=self.toggle_dark_mode)
-        fullscreen_var = tk.BooleanVar(value=bool(self.attributes("-fullscreen")))
+        fullscreen_var = tk.BooleanVar(value=self.state() == "zoomed")
         menu.add_checkbutton(label="Fullscreen", variable=fullscreen_var, command=self.toggle_fullscreen)
         menu.add_separator()
         menu.add_command(label="Artwork", state="disabled")
@@ -1637,7 +1724,6 @@ class CreativeToolbox(tk.Tk):
         menu.add_separator()
         menu.add_command(label="Metrics", state="disabled")
         menu.add_command(label="Excel location", command=self.choose_metrics_workbook)
-        menu.add_command(label="Recommendations location", command=self.choose_monthly_recommendations)
         menu.add_command(label="Export Excel template", command=self.export_metrics_template)
         menu.add_separator()
         menu.add_command(label="Info", state="disabled")
@@ -1676,7 +1762,10 @@ class CreativeToolbox(tk.Tk):
         self.refresh_current_page()
 
     def toggle_fullscreen(self):
-        self.attributes("-fullscreen", not bool(self.attributes("-fullscreen")))
+        if self.state() == "zoomed":
+            self.state("normal")
+        else:
+            self.state("zoomed")
 
     def refresh_current_page(self):
         current = self.current_page
@@ -2802,9 +2891,12 @@ class ToolsPage(ttk.Frame):
         self.meter_jobs = []
         self.performance_canvases = {}
         self.performance_display_values = {}
+        self.meter_availability = {key: True for key in PERFORMANCE_METER_OPTIONS}
         self.performance_running = True
         self.performance_collecting = False
         self.meter_vars = {}
+        self.meter_menu = None
+        self.meter_menu_indices = {}
         self.performance_container = None
         self.system_grid = None
         self.web_grid = None
@@ -2827,12 +2919,12 @@ class ToolsPage(ttk.Frame):
         system_title = ttk.Frame(main, style="Panel.TFrame")
         system_title.pack(fill="x", pady=(0, 12))
         ttk.Label(system_title, text="System actions", style="CardTitle.TLabel").pack(side="left")
-        system_grid = tk.Canvas(main, height=390, bg=self.app.colors["panel_bg"], highlightthickness=0)
+        system_grid = tk.Canvas(main, height=260, bg=self.app.colors["panel_bg"], highlightthickness=0)
         self.system_grid = system_grid
         system_grid.pack(fill="x", pady=(0, 18))
         for col in range(3):
             system_grid.columnconfigure(col, weight=1, uniform="systemtiles")
-        for row in range(3):
+        for row in range(2):
             system_grid.rowconfigure(row, weight=1, uniform="systemrows")
         system_grid.bind("<Configure>", lambda _event: self.draw_pane_background(system_grid))
         self.create_action_tile(system_grid, 0, 0, "OneDrive", "#5b6770", "Checking...", "Refresh", self.refresh, "onedrive", "cloud", "microsoft.com")
@@ -2840,8 +2932,7 @@ class ToolsPage(ttk.Frame):
         self.create_action_tile(system_grid, 0, 2, "Media cache", "#7b5f2a", "Checking...", "Click to delete", self.confirm_delete_cache, "cache", "trash", "microsoft.com")
         self.create_action_tile(system_grid, 1, 0, "YT Downloader", "#d93025", "Download videos", "Open tool", self.app.show_youtube_downloader, "youtube", "play", "youtube.com")
         self.create_action_tile(system_grid, 1, 1, "Refresh", "#2f6f73", "Update tool status", "Click to refresh", self.refresh, "refresh", "refresh", "microsoft.com")
-        self.create_action_tile(system_grid, 1, 2, "Universe", "#6f42c1", "Open folders", "Browse in app", self.open_universe_browser, "universe", "tree", "lukestrom.com")
-        self.create_action_tile(system_grid, 2, 2, "Hack Windows", "#111111", "Terminal storm", "Click to start", self.app.start_hack_windows, "hack", "monitor", "microsoft.com")
+        self.create_action_tile(system_grid, 1, 2, "Universe", "#6f42c1", "Open folder", "Browse in app", self.open_universe_browser, "universe", "tree", "lukestrom.com")
         self.layout_system_actions()
         self.cache_progress = ttk.Progressbar(main, mode="determinate", maximum=100)
         self.cache_progress_label = ttk.Label(main, textvariable=self.cache_progress_var, style="CardText.TLabel")
@@ -2921,7 +3012,7 @@ class ToolsPage(ttk.Frame):
     def layout_system_actions(self):
         if self.system_grid is None:
             return
-        self.system_grid.configure(height=390)
+        self.system_grid.configure(height=260)
         positions = {
             "onedrive": (0, 0),
             "outlook": (0, 1),
@@ -2929,7 +3020,6 @@ class ToolsPage(ttk.Frame):
             "youtube": (1, 0),
             "refresh": (1, 1),
             "universe": (1, 2),
-            "hack": (2, 0),
         }
         for key, position in positions.items():
             canvas = self.system_tiles.get(key)
@@ -3440,36 +3530,38 @@ class VuPage(ttk.Frame):
         self.meter_jobs = []
         self.performance_canvases = {}
         self.performance_display_values = {}
+        self.meter_availability = {key: True for key in PERFORMANCE_METER_OPTIONS}
         self.performance_running = True
         self.performance_collecting = False
         self.meter_vars = {}
+        self.meter_menu = None
+        self.meter_menu_indices = {}
         self.audio_left_var = tk.BooleanVar(value=True)
         self.audio_right_var = tk.BooleanVar(value=True)
         self.performance_container = None
+        self.empty_meter_label = None
         self.audio_page = None
         self._build()
         self.refresh_performance()
 
     def _build(self):
-        outer = ScrollFrame(self)
-        outer.pack(fill="both", expand=True, pady=(0, 14))
-        outer.canvas.configure(bg=self.app.colors["panel_bg"], highlightthickness=0)
-        outer.body.configure(style="Panel.TFrame")
-        outer.set_auto_scrollbar(True)
-
-        main = ttk.Frame(outer.body, style="Panel.TFrame", padding=18)
+        main = ttk.Frame(self, style="Panel.TFrame", padding=18)
         main.pack(fill="both", expand=True)
+        main.columnconfigure(0, weight=1)
+        main.rowconfigure(1, weight=1)
         header = ttk.Frame(main, style="Panel.TFrame")
-        header.pack(fill="x", pady=(0, 14))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
         ttk.Label(header, text="VU", style="CardTitle.TLabel").pack(side="left")
         meter_button = ttk.Menubutton(header, text="VU meters")
         meter_button.pack(side="left", padx=(10, 0))
         meter_menu = tk.Menu(meter_button, tearoff=False)
+        self.meter_menu = meter_menu
         meter_button.configure(menu=meter_menu)
         for key, config in PERFORMANCE_METER_OPTIONS.items():
             var = tk.BooleanVar(value=True)
             self.meter_vars[key] = var
             meter_menu.add_checkbutton(label=config["title"], variable=var, command=self.layout_meters)
+            self.meter_menu_indices[key] = meter_menu.index("end")
         meter_menu.add_separator()
         meter_menu.add_checkbutton(label="Audio L", variable=self.audio_left_var, command=self.layout_meters)
         meter_menu.add_checkbutton(label="Audio R", variable=self.audio_right_var, command=self.layout_meters)
@@ -3478,7 +3570,7 @@ class VuPage(ttk.Frame):
 
         performance = ttk.Frame(main, style="Panel.TFrame")
         self.performance_container = performance
-        performance.pack(fill="both", expand=True, pady=(0, 18))
+        performance.grid(row=1, column=0, sticky="nsew")
         for key, config in PERFORMANCE_METER_OPTIONS.items():
             canvas = tk.Canvas(performance, height=220, bg=self.app.colors["panel_bg"], highlightthickness=1, highlightbackground=self.app.colors["border"])
             canvas.slot_key = key
@@ -3523,18 +3615,37 @@ class VuPage(ttk.Frame):
     def layout_meters(self):
         if self.performance_container is None:
             return
+        if self.empty_meter_label is not None and self.empty_meter_label.winfo_exists():
+            self.empty_meter_label.destroy()
+            self.empty_meter_label = None
         for canvas in self.performance_canvases.values():
             canvas.grid_forget()
-        for column in range(3):
-            self.performance_container.columnconfigure(column, weight=1, uniform="meters", minsize=0)
-        visible = [key for key in PERFORMANCE_METER_OPTIONS if self.meter_vars.get(key, tk.BooleanVar(value=True)).get()]
+        for canvas in (self.audio_left_canvas, self.audio_right_canvas):
+            canvas.grid_forget()
+        for column in range(6):
+            self.performance_container.columnconfigure(column, weight=0, uniform="", minsize=0)
+        for row in range(6):
+            self.performance_container.rowconfigure(row, weight=0, uniform="", minsize=0)
+        visible = [
+            key for key in PERFORMANCE_METER_OPTIONS
+            if self.meter_availability.get(key, True) and self.meter_vars.get(key, tk.BooleanVar(value=True)).get()
+        ]
         if self.audio_left_var.get():
             visible.append("audio_left")
         if self.audio_right_var.get():
             visible.append("audio_right")
-        row_count = max(1, (len(visible) + 2) // 3)
-        for row in range(6):
-            self.performance_container.rowconfigure(row, weight=1 if row < row_count else 0, minsize=0)
+        if not visible:
+            self.empty_meter_label = ttk.Label(self.performance_container, text="No meters selected.", style="Muted.TLabel")
+            self.empty_meter_label.grid(row=0, column=0, sticky="nsew")
+            self.performance_container.columnconfigure(0, weight=1)
+            self.performance_container.rowconfigure(0, weight=1)
+            return
+        column_count = 1 if len(visible) == 1 else 2 if len(visible) == 2 else 3
+        row_count = max(1, (len(visible) + column_count - 1) // column_count)
+        for column in range(column_count):
+            self.performance_container.columnconfigure(column, weight=1, uniform="meters", minsize=0)
+        for row in range(row_count):
+            self.performance_container.rowconfigure(row, weight=1, uniform="meterrows", minsize=0)
         for index, key in enumerate(visible):
             canvas = self.performance_canvases.get(key)
             if key == "audio_left":
@@ -3543,9 +3654,19 @@ class VuPage(ttk.Frame):
                 canvas = self.audio_right_canvas
             if canvas is None:
                 continue
-            row = index // 3
-            col = index % 3
+            row = index // column_count
+            col = index % column_count
             canvas.grid(row=row, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0), pady=(0 if row == 0 else 8, 0))
+
+    def update_meter_menu_state(self, key, available):
+        self.meter_availability[key] = available
+        if self.meter_menu is None or key not in self.meter_menu_indices:
+            return
+        index = self.meter_menu_indices[key]
+        if available:
+            self.meter_menu.entryconfig(index, state="normal")
+        else:
+            self.meter_menu.entryconfig(index, state="disabled")
 
     def rotate_meter_background(self, canvas):
         if not self.performance_running or not canvas.winfo_exists():
@@ -3589,6 +3710,7 @@ class VuPage(ttk.Frame):
             if slot_key in ("onedrive_upload", "onedrive_download"):
                 canvas.meter_subtext = snapshot.get(f"{slot_key}_label", "No active file detected")
             new_value = snapshot.get(slot_key)
+            self.update_meter_menu_state(slot_key, new_value is not None)
             previous = self.performance_display_values.get(slot_key)
             if previous is None or new_value is None:
                 display_value = new_value
@@ -3596,6 +3718,7 @@ class VuPage(ttk.Frame):
                 display_value = previous + (new_value - previous) * 0.55
             self.performance_display_values[slot_key] = display_value
             self.draw_vu_meter(canvas, display_value)
+        self.layout_meters()
 
 
 class FolderBrowserPage(ttk.Frame):
@@ -3605,7 +3728,7 @@ class FolderBrowserPage(ttk.Frame):
         self.root_path = Path(root_path)
         self.current_path = self.root_path
         self.back_command = back_command
-        self.view_mode = tk.StringVar(value="big")
+        self.view_mode = tk.StringVar(value="list")
         self.selected_path = None
         self.selected_widget = None
         self._build()
@@ -5114,6 +5237,7 @@ class MetricsPage(ttk.Frame):
         self.entries = {}
         self.rows = []
         self.totals = []
+        self.monthly_rows = []
         self._build()
 
     def _build(self):
@@ -5210,10 +5334,18 @@ class MetricsPage(ttk.Frame):
         self.app.style_chart_canvas(self.followers_canvas)
         self.platform_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
         self.app.style_chart_canvas(self.platform_canvas)
+        self.monthly_impressions_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
+        self.app.style_chart_canvas(self.monthly_impressions_canvas)
+        self.monthly_followers_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
+        self.app.style_chart_canvas(self.monthly_followers_canvas)
+        self.monthly_posts_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
+        self.app.style_chart_canvas(self.monthly_posts_canvas)
+        self.monthly_interactions_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
+        self.app.style_chart_canvas(self.monthly_interactions_canvas)
 
         recommendations = ttk.Frame(self.dashboard, style="Panel.TFrame", padding=12)
         self.recommendations_panel = recommendations
-        ttk.Label(recommendations, text="Monthly recommendations", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 8))
+        ttk.Label(recommendations, text="Monthly summary", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 8))
         rec_body = ttk.Frame(recommendations, style="Panel.TFrame")
         rec_body.pack(fill="both", expand=True)
         self.recommendations_text = tk.Text(rec_body, height=8, wrap="word", font=("Segoe UI", 10), padx=10, pady=10)
@@ -5249,30 +5381,37 @@ class MetricsPage(ttk.Frame):
     def layout_dashboard(self, _event=None):
         if not hasattr(self, "recommendations_panel"):
             return
-        widgets = [self.views_canvas, self.followers_canvas, self.platform_canvas, self.recommendations_panel]
+        widgets = [
+            self.views_canvas,
+            self.followers_canvas,
+            self.platform_canvas,
+            self.monthly_impressions_canvas,
+            self.monthly_followers_canvas,
+            self.monthly_posts_canvas,
+            self.monthly_interactions_canvas,
+            self.recommendations_panel,
+        ]
         for widget in widgets:
             widget.grid_forget()
         width = max(1, self.dashboard.winfo_width())
-        for index in range(4):
+        for index in range(8):
             self.dashboard.rowconfigure(index, weight=0)
             self.dashboard.columnconfigure(index, weight=0)
         if width < 720:
             self.dashboard.columnconfigure(0, weight=1)
-            for row in range(4):
+            for row in range(len(widgets)):
                 self.dashboard.rowconfigure(row, weight=1)
-            self.views_canvas.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
-            self.followers_canvas.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
-            self.platform_canvas.grid(row=2, column=0, sticky="nsew", pady=(0, 10))
-            self.recommendations_panel.grid(row=3, column=0, sticky="nsew")
+            for row, widget in enumerate(widgets):
+                widget.grid(row=row, column=0, sticky="nsew", pady=(0, 10))
         else:
             self.dashboard.columnconfigure(0, weight=1)
             self.dashboard.columnconfigure(1, weight=1)
-            self.dashboard.rowconfigure(0, weight=1)
-            self.dashboard.rowconfigure(1, weight=1)
-            self.views_canvas.grid(row=0, column=0, sticky="nsew", padx=(0, 6), pady=(0, 10))
-            self.followers_canvas.grid(row=0, column=1, sticky="nsew", padx=(6, 0), pady=(0, 10))
-            self.platform_canvas.grid(row=1, column=0, sticky="nsew", padx=(0, 6))
-            self.recommendations_panel.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
+            for row in range(4):
+                self.dashboard.rowconfigure(row, weight=1)
+            for index, widget in enumerate(widgets):
+                row = index // 2
+                col = index % 2
+                widget.grid(row=row, column=col, sticky="nsew", padx=(0 if col == 0 else 6, 0 if col == 1 else 6), pady=(0, 10))
 
     def growth_text(self, current, previous):
         try:
@@ -5303,7 +5442,39 @@ class MetricsPage(ttk.Frame):
         name, value = max(platforms, key=lambda item: item[1])
         total = sum(value for _name, value in platforms)
         share = 0 if total <= 0 else value * 100 / total
-        return ("Platform MVP", name, f"{value:,} views | {share:.0f}% of weekly traffic")
+        return ("Platform MVP", name, f"{value:,} impressions | {share:.0f}% of weekly traffic")
+
+    def monthly_kpis(self):
+        if not self.monthly_rows:
+            return []
+        latest = self.monthly_rows[-1]
+        previous = self.monthly_rows[-2] if len(self.monthly_rows) >= 2 else None
+        platform_values = [
+            ("Facebook", latest["fb_impressions"]),
+            ("Instagram", latest["ig_impressions"]),
+            ("TikTok", latest["tt_impressions"]),
+            ("YouTube", latest["yt_impressions"]),
+        ]
+        best_name, best_value = max(platform_values, key=lambda item: item[1])
+        total_impressions = sum(value for _name, value in platform_values)
+        total_followers = latest["fb_followers"] + latest["ig_followers"] + latest["tt_followers"] + latest["yt_followers"]
+        growth_label = "no previous month"
+        if previous is not None:
+            growths = []
+            for prefix, name in (("fb", "Facebook"), ("ig", "Instagram"), ("tt", "TikTok"), ("yt", "YouTube")):
+                old = previous[f"{prefix}_impressions"]
+                new = latest[f"{prefix}_impressions"]
+                if old > 0:
+                    growths.append(((new - old) * 100 / old, name))
+            if growths:
+                growth, name = max(growths, key=lambda item: item[0])
+                growth_label = f"{name} {growth:+.0f}%"
+        return [
+            ("Monthly impressions", total_impressions, latest["month"]),
+            ("Monthly followers", total_followers, latest["month"]),
+            ("Best platform", best_name, f"{best_value:,} impressions"),
+            ("Largest MoM growth", growth_label, "impressions"),
+        ]
 
     def refresh(self):
         for widget in self.summary.winfo_children():
@@ -5311,6 +5482,7 @@ class MetricsPage(ttk.Frame):
         try:
             self.rows = load_metrics_rows()
             self.totals = metrics_totals(self.rows)
+            self.monthly_rows = load_monthly_rows()
         except Exception as exc:
             ttk.Label(self.summary, text=str(exc), style="Muted.TLabel").pack(anchor="w")
             return
@@ -5323,16 +5495,16 @@ class MetricsPage(ttk.Frame):
         _mvp_title, mvp_name, mvp_detail = self.platform_mvp()
         cards = [
             ("Weeks", len(self.rows), "tracked entries"),
-            ("Total views", latest["total_views"] if latest else 0, self.growth_text(latest["total_views"] if latest else 0, previous["total_views"] if previous else 0)),
+            ("Weekly impressions", latest_week_views, self.growth_text(latest_week_views, previous_week_views)),
             ("Followers", latest["total_followers"] if latest else 0, self.growth_text(latest["total_followers"] if latest else 0, previous["total_followers"] if previous else 0)),
-            ("Last week views", latest_week_views, self.growth_text(latest_week_views, previous_week_views)),
             ("Platform MVP", mvp_name, mvp_detail),
         ]
+        cards.extend(self.monthly_kpis())
         for col in range(len(cards)):
-            self.summary.columnconfigure(col, weight=1, uniform="summary")
+            self.summary.columnconfigure(col % 4, weight=1, uniform="summary")
         for index, (title, value, detail) in enumerate(cards):
             card = ttk.Frame(self.summary, style="Panel.TFrame", padding=12)
-            card.grid(row=0, column=index, sticky="ew", padx=(0 if index == 0 else 6, 0 if index == len(cards) - 1 else 6))
+            card.grid(row=index // 4, column=index % 4, sticky="ew", padx=6, pady=(0, 8))
             ttk.Label(card, text=title, style="CardText.TLabel").pack(anchor="w")
             value_text = f"{value:,}" if isinstance(value, (int, float)) else str(value)
             ttk.Label(card, text=value_text, font=("Segoe UI", 18, "bold"), background=self.app.colors["panel_bg"], foreground=self.app.colors["text"]).pack(anchor="w")
@@ -5343,43 +5515,25 @@ class MetricsPage(ttk.Frame):
         self.draw_views_chart()
         self.draw_followers_chart()
         self.draw_platform_chart()
+        self.draw_monthly_charts()
         self.load_monthly_recommendations()
 
     def load_monthly_recommendations(self):
         if not hasattr(self, "recommendations_text"):
             return
-        path = get_monthly_recommendations_path()
-        try:
-            content = path.read_text(encoding="utf-8").strip() if path.exists() else ""
-        except UnicodeDecodeError:
-            try:
-                content = path.read_text(encoding="cp1252").strip()
-            except Exception:
-                content = ""
-        except Exception:
-            content = ""
-        if not content:
-            content = "waiting for info..."
+        if self.monthly_rows:
+            latest = self.monthly_rows[-1]
+            content = (
+                f"Month: {latest['month']}\n\n"
+                f"Dashboard Summary\n{latest.get('dashboard_summary') or 'waiting for info...'}\n\n"
+                f"Next Month Focus\n{latest.get('next_month_focus') or 'waiting for info...'}"
+            )
+        else:
+            content = "waiting for monthly info..."
         self.recommendations_text.configure(state="normal")
         self.recommendations_text.delete("1.0", tk.END)
-        self.recommendations_text.report_paths_by_line = {}
-        self.recommendations_text.tag_configure("report_link", foreground="#74a7ff" if self.app.dark_mode else "#1a5fb4", underline=True)
-        self.recommendations_text.tag_bind("report_link", "<Enter>", lambda _event: self.recommendations_text.configure(cursor="hand2"))
-        self.recommendations_text.tag_bind("report_link", "<Leave>", lambda _event: self.recommendations_text.configure(cursor=""))
-        lines = content.splitlines()
-        for index, line in enumerate(lines):
-            report_path = monthly_report_path_from_heading(line)
-            line_number = index + 1
-            start = self.recommendations_text.index(tk.END)
-            self.recommendations_text.insert(tk.END, line)
-            end = self.recommendations_text.index(tk.END)
-            if report_path is not None:
-                self.recommendations_text.report_paths_by_line[line_number] = report_path
-                tag_name = f"report_link_{index}"
-                self.recommendations_text.tag_add("report_link", start, end)
-                self.recommendations_text.tag_add(tag_name, start, end)
-            if index < len(lines) - 1:
-                self.recommendations_text.insert(tk.END, "\n")
+        self.recommendations_text.insert(tk.END, content)
+        self.recommendations_text.configure(state="disabled")
 
     def handle_recommendation_click(self, event):
         try:
@@ -5524,7 +5678,7 @@ class MetricsPage(ttk.Frame):
 
     def draw_table(self):
         self.table.delete("1.0", tk.END)
-        self.table.insert(tk.END, "Views\n")
+        self.table.insert(tk.END, "Impressions\n")
         self.table.insert(tk.END, "Week   Date        TT     IG     YT     FB     Total\n")
         self.table.insert(tk.END, "-------------------------------------------------------\n")
         for row, total in reversed(list(zip(self.rows, self.totals))):
@@ -5580,7 +5734,7 @@ class MetricsPage(ttk.Frame):
                 previous_month = label
 
     def draw_views_chart(self):
-        self.draw_total_line_chart(self.views_canvas, "Total views over time", "total_views", "#2f6f73")
+        self.draw_total_line_chart(self.views_canvas, "Weekly impressions over time", "total_views", "#2f6f73")
 
     def draw_followers_chart(self):
         self.draw_total_line_chart(self.followers_canvas, "Total followers over time", "total_followers", "#7b5f2a")
@@ -5592,7 +5746,7 @@ class MetricsPage(ttk.Frame):
         width = max(260, canvas.winfo_width())
         height = max(190, canvas.winfo_height())
         rounded_rect(canvas, 0, 0, width, height, radius=10, fill=self.app.colors["chart_bg"], outline=self.app.colors["border"])
-        canvas.create_text(16, 14, text="Latest week views by platform", anchor="nw", font=("Segoe UI", 12, "bold"), fill=self.app.colors["text"])
+        canvas.create_text(16, 14, text="Latest week impressions by platform", anchor="nw", font=("Segoe UI", 12, "bold"), fill=self.app.colors["text"])
         if not self.rows:
             return
         latest = self.rows[-1]
@@ -5608,6 +5762,66 @@ class MetricsPage(ttk.Frame):
             bar_w = (right - left) * value / max_value
             rounded_rect(canvas, left, y, left + bar_w, y + bar_h, radius=10, fill=color, outline="")
             canvas.create_text(left + bar_w + 8, y + bar_h / 2, text=f"{value:,}", anchor="w", font=("Segoe UI", 9, "bold"), fill=self.app.colors["text"])
+
+    def draw_monthly_charts(self):
+        self.draw_monthly_line_chart(
+            self.monthly_impressions_canvas,
+            "Monthly impressions",
+            ["fb_impressions", "ig_impressions", "tt_impressions", "yt_impressions"],
+        )
+        self.draw_monthly_line_chart(
+            self.monthly_followers_canvas,
+            "Monthly followers",
+            ["fb_followers", "ig_followers", "tt_followers", "yt_followers"],
+        )
+        self.draw_monthly_line_chart(
+            self.monthly_posts_canvas,
+            "Monthly posts",
+            ["fb_posts", "ig_posts", "tt_posts", "yt_posts"],
+        )
+        self.draw_monthly_line_chart(
+            self.monthly_interactions_canvas,
+            "Monthly interactions",
+            ["fb_interactions", "ig_interactions", "tt_interactions", "yt_interactions"],
+        )
+
+    def draw_monthly_line_chart(self, canvas, title, keys):
+        canvas.delete("all")
+        canvas.update_idletasks()
+        width = max(260, canvas.winfo_width())
+        height = max(190, canvas.winfo_height())
+        rounded_rect(canvas, 0, 0, width, height, radius=10, fill=self.app.colors["chart_bg"], outline=self.app.colors["border"])
+        canvas.create_text(16, 14, text=title, anchor="nw", font=("Segoe UI", 12, "bold"), fill=self.app.colors["text"])
+        data = self.monthly_rows[-12:]
+        if len(data) < 2:
+            canvas.create_text(16, 52, text="waiting for monthly data...", anchor="nw", font=("Segoe UI", 9), fill=self.app.colors["muted"])
+            return
+        platform_labels = ["Facebook", "Instagram", "TikTok", "YouTube"]
+        colors = ["#8d3f3f", "#7b5f2a", "#111111", "#4f6f8f"]
+        max_value = max(max(row[key] for key in keys) for row in data) or 1
+        left, top, right, bottom = 54, 48, width - 18, height - 38
+        for step in range(0, 5):
+            value = max_value * step / 4
+            y = bottom - (bottom - top) * step / 4
+            canvas.create_line(left - 4, y, right, y, fill=self.app.colors["grid"])
+            canvas.create_text(left - 8, y, text=f"{int(value):,}", anchor="e", font=("Segoe UI", 8), fill=self.app.colors["muted"])
+        for key, label, color in zip(keys, platform_labels, colors):
+            points = []
+            for idx, row in enumerate(data):
+                x = left + (right - left) * idx / (len(data) - 1)
+                y = bottom - (bottom - top) * row[key] / max_value
+                points.extend([x, y])
+            canvas.create_line(*points, fill=color, width=2, smooth=True)
+        canvas.create_line(left, bottom, right, bottom, fill=self.app.colors["border"])
+        canvas.create_line(left, top, left, bottom, fill=self.app.colors["border"])
+        for idx, row in enumerate(data):
+            if idx in (0, len(data) - 1) or idx % 3 == 0:
+                x = left + (right - left) * idx / (len(data) - 1)
+                canvas.create_text(x, bottom + 14, text=row["month"], font=("Segoe UI", 8), fill=self.app.colors["muted"])
+        legend_x = left
+        for label, color in zip(platform_labels, colors):
+            canvas.create_text(legend_x, height - 14, text=label, anchor="w", font=("Segoe UI", 8), fill=color)
+            legend_x += max(70, len(label) * 7)
 
 
 class YouTubeDownloaderPage(ttk.Frame):
