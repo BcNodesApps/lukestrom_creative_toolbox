@@ -67,7 +67,7 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V4.2"
+APP_VERSION = "V4.5"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
 APP_ICON_FILENAME = "260414 logo lukestrom round.png"
@@ -83,7 +83,7 @@ DEFAULT_TILE_FONT_SIZE_MAX_PERCENT = 300
 DEFAULT_TILE_ARTWORK_OPACITY_PERCENT = 50
 DEFAULT_VU_ARTWORK_OPACITY_PERCENT = 15
 CACHECLIP_DIR = Path(r"D:\OneDrive\Production\creations\misc\video\mediacache\CacheClip")
-UNIVERSE_DIR = Path(r"D:\OneDrive\Production\creations\misc\lukestrom universe")
+UNIVERSE_DIR = Path(r"D:\OneDrive\Production\creations")
 EXTERNAL_APP_ICON_PATH = Path(r"D:\OneDrive\Production\uploads") / APP_ICON_FILENAME
 SETTINGS_DIR = Path(os.getenv("APPDATA", str(Path.home()))) / "Creative Toolbox"
 SETTINGS_FILE = SETTINGS_DIR / "settings.json"
@@ -500,6 +500,24 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
 
+## V4.5
+- Audio L/R and Upload/Download are now placed as fixed VU meter pairs, so they cannot split onto separate rows.
+- The two regular Windows File Explorer windows opened by the MeloVerse Explorer are moved side by side instead of appearing on top of each other.
+
+## V4.4
+- Upload/Download and Audio L/R VU meters now stay side by side by switching the meter grid to paired columns when needed.
+- The LukeStrom MeloVerse Explorer now opens two regular Windows File Explorer windows for the creations folder instead of the custom in-app explorer.
+
+## V4.3
+- VU was renamed to Tools, and the former Tools page was renamed to Shortcuts.
+- A refresh icon was added next to the hamburger menu for quick page refreshes.
+- The old Refresh system-action tile was removed from Shortcuts.
+- The LukeStrom MeloVerse Explorer now opens the main creations folder.
+- Monthly worksheet import now reads by column names and accepts common aliases such as views/impressions and fb/Facebook.
+- Weekly observations were added as an automatic dashboard panel without changing the Weekly worksheet.
+- The Tools meter page hides the audio source selector and instead shows compact system action buttons with hover help.
+- Upload/Download and Audio L/R meters are kept in side-by-side pairs when possible.
+
 ## V4.2
 - Monthly worksheet detection is now case-insensitive, so monthly, Monthly, and MONTHLY all work.
 - Universe opens in the app window again, now defaulting to a cleaner list-style file browser.
@@ -772,11 +790,11 @@ Use this when you want a release or posting plan. Enter the song details, number
 ## YouTube Downloader
 Open this from Tools. Use it to download a full YouTube video or only a segment. Paste the link. Leave Start and End empty for the full video, or enter times like 00:30 and 00:45 for a segment. The downloader automatically tries the highest available quality and puts the actual resolution in the filename.
 
-## VU
-Use this when you want live meters. The grid can show system values such as processor, memory, disk, network, GPU, temperature when available, OneDrive upload/download activity, and Audio L/R. The audio meters react to music or video audio playing on the computer when Windows exposes that audio source. Use the VU meters menu to choose which meters are visible.
-
 ## Tools
-Use Tools as the always-open control panel. Use the OneDrive tile to start or stop syncing, the Outlook tile to close Outlook, the Media Cache tile to delete the video cache after checking its size, the YT Downloader tile to open the downloader, and Universe to browse your creative files. Web shortcut tiles open creator sites in Chrome. The ChatGPT tile opens your project links.
+Use Tools when you want live meters and quick system actions in one screen. The grid can show processor, memory, disk, network, GPU, temperature when available, OneDrive upload/download activity, and Audio L/R. Use the VU meters menu to choose which meters are visible. The small action buttons can start or stop OneDrive, close Outlook, delete the media cache, open YouTube Downloader, or open the MeloVerse Explorer.
+
+## Shortcuts
+Use Shortcuts for creator links and quick utilities. OneDrive, Outlook, Media Cache, YouTube Downloader, and the LukeStrom MeloVerse Explorer are system action tiles. Web shortcut tiles open creator sites in Chrome. The ChatGPT tile opens your project links.
 
 ## Metrics
 Use Metrics to keep weekly operational stats and monthly strategic stats. Weekly answers what happened this week: enter impressions and followers per platform, then save the week to Excel. Monthly answers how the project is developing over time: fill the Monthly worksheet with Metricool report values and ChatGPT analysis. The dashboard shows weekly impressions, weekly followers, platform MVP, monthly KPI cards, monthly trend charts, Dashboard Summary, and Next Month Focus.
@@ -785,7 +803,7 @@ Use Metrics to keep weekly operational stats and monthly strategic stats. Weekly
 Use the hamburger menu for settings and help. Artwork controls the picture folder, image interval, tile opacity, and VU opacity. Fonts controls custom fonts, basic font mode, font interval, and title size. Metrics controls the Excel file location and can export a starter template. Info sits at the bottom and contains Release notes and this How to.
 
 ## Suggested Workflow
-Start with Song Analyzer or Reel Design while creating content. Use Campaign Planner when a song or reel batch is ready to publish. Open YouTube Downloader from Tools when you need source clips. Use VU when you want visual meters reacting to your system and music. Keep Tools open while working. Update Metrics once a week after your Sunday 20:00 stats check.
+Start with Song Analyzer or Reel Design while creating content. Use Campaign Planner when a song or reel batch is ready to publish. Open YouTube Downloader from Shortcuts when you need source clips. Use Tools when you want visual meters reacting to your system and music. Keep Shortcuts open for web links and file utilities. Update Metrics once a week after your Sunday 20:00 stats check.
 """
 APP_ICON_PATH = first_existing_path(
     EXTERNAL_APP_ICON_PATH,
@@ -1312,6 +1330,68 @@ def ensure_monthly_worksheet(wb):
     return ws
 
 
+def normalize_header(value):
+    return re.sub(r"[^a-z0-9]+", " ", str(value or "").strip().lower()).strip()
+
+
+def normalize_month_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m")
+    if isinstance(value, date):
+        return value.strftime("%Y-%m")
+    text = str(value).strip()
+    if not text:
+        return ""
+    parsed = None
+    for fmt in ("%Y-%m", "%Y/%m", "%m-%Y", "%m/%Y", "%B %Y", "%b %Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            break
+        except Exception:
+            pass
+    if parsed is not None:
+        return parsed.strftime("%Y-%m")
+    return text
+
+
+MONTHLY_FIELD_ALIASES = {
+    "month": ["month", "maand", "period", "periode"],
+    "fb_impressions": ["facebook impressions", "facebook impression", "fb impressions", "fb impression", "facebook views", "fb views"],
+    "ig_impressions": ["instagram impressions", "instagram impression", "ig impressions", "ig impression", "instagram views", "ig views"],
+    "tt_impressions": ["tiktok impressions", "tiktok impression", "tt impressions", "tt impression", "tiktok views", "tt views"],
+    "yt_impressions": ["youtube impressions", "youtube impression", "yt impressions", "yt impression", "youtube views", "yt views"],
+    "fb_followers": ["facebook followers", "fb followers"],
+    "ig_followers": ["instagram followers", "ig followers"],
+    "tt_followers": ["tiktok followers", "tt followers"],
+    "yt_followers": ["youtube followers", "yt followers"],
+    "fb_posts": ["facebook posts", "fb posts"],
+    "ig_posts": ["instagram posts", "ig posts"],
+    "tt_posts": ["tiktok posts", "tt posts"],
+    "yt_posts": ["youtube posts", "yt posts"],
+    "fb_interactions": ["facebook interactions", "fb interactions", "facebook engagement", "fb engagement"],
+    "ig_interactions": ["instagram interactions", "ig interactions", "instagram engagement", "ig engagement"],
+    "tt_interactions": ["tiktok interactions", "tt interactions", "tiktok engagement", "tt engagement"],
+    "yt_interactions": ["youtube interactions", "yt interactions", "youtube engagement", "yt engagement"],
+    "dashboard_summary": ["dashboard summary", "summary", "samenvatting"],
+    "next_month_focus": ["next month focus", "focus", "next focus", "volgende maand focus"],
+}
+
+
+def monthly_header_map(ws):
+    headers = [normalize_header(cell.value) for cell in ws[1]]
+    lookup = {header: index for index, header in enumerate(headers) if header}
+    result = {}
+    for key, aliases in MONTHLY_FIELD_ALIASES.items():
+        for alias in aliases:
+            normalized = normalize_header(alias)
+            if normalized in lookup:
+                result[key] = lookup[normalized]
+                break
+    return result
+
+
 def load_monthly_rows():
     try:
         from openpyxl import load_workbook
@@ -1334,7 +1414,6 @@ def load_monthly_rows():
     if ws.max_row <= 1:
         return []
 
-    rows = []
     keys = [
         "month",
         "fb_impressions", "ig_impressions", "tt_impressions", "yt_impressions",
@@ -1343,15 +1422,29 @@ def load_monthly_rows():
         "fb_interactions", "ig_interactions", "tt_interactions", "yt_interactions",
         "dashboard_summary", "next_month_focus",
     ]
-    for values in ws.iter_rows(min_row=2, max_col=len(keys), values_only=True):
-        if not values or values[0] in (None, ""):
+    header_map = monthly_header_map(ws)
+    if "month" not in header_map:
+        header_map = {key: index for index, key in enumerate(keys)}
+
+    rows = []
+    for values in ws.iter_rows(min_row=2, values_only=True):
+        if not values:
+            continue
+        raw_month = values[header_map["month"]] if header_map["month"] < len(values) else None
+        month = normalize_month_value(raw_month)
+        if not month:
             continue
         row = {}
-        for key, value in zip(keys, values):
+        for key in keys:
+            index = header_map.get(key)
+            value = values[index] if index is not None and index < len(values) else None
             if key in ("month", "dashboard_summary", "next_month_focus"):
-                row[key] = "" if value is None else str(value)
+                row[key] = month if key == "month" else ("" if value is None else str(value))
             else:
-                row[key] = int(value or 0)
+                try:
+                    row[key] = int(float(value or 0))
+                except Exception:
+                    row[key] = 0
         rows.append(row)
     rows.sort(key=lambda item: item["month"])
     return rows
@@ -1680,8 +1773,8 @@ class CreativeToolbox(tk.Tk):
             ("Song", self.show_song_analyzer),
             ("Reel", self.show_reel_design),
             ("Campaign", self.show_post_planner),
-            ("VU", self.show_audio_vu),
-            ("Tools", self.show_tools),
+            ("Tools", self.show_audio_vu),
+            ("Shortcuts", self.show_tools),
             ("Metrics", self.show_metrics),
         ]
         for text, command in tool_buttons:
@@ -1689,6 +1782,8 @@ class CreativeToolbox(tk.Tk):
 
         right_nav = ttk.Frame(self.topbar)
         right_nav.grid(row=0, column=2, sticky="e")
+        self.refresh_button = ttk.Button(right_nav, text="↻", width=3, command=self.refresh_active_page, style="NavLinks.TButton", takefocus=False)
+        self.refresh_button.pack(side="left", padx=(0, 6))
         self.menu_button = ttk.Button(right_nav, text="☰", width=3, command=self.show_settings_menu, style="NavLinks.TButton", takefocus=False)
         self.menu_button.pack(side="left")
 
@@ -1785,6 +1880,19 @@ class CreativeToolbox(tk.Tk):
             self.show_metrics()
         else:
             self.show_home()
+
+    def refresh_active_page(self):
+        current = self.current_page
+        if hasattr(current, "refresh"):
+            try:
+                current.refresh()
+                return
+            except TypeError:
+                pass
+        if isinstance(current, VuPage):
+            current.refresh_performance()
+        else:
+            self.refresh_current_page()
 
     def style_text_widget(self, widget):
         widget.configure(
@@ -2391,7 +2499,7 @@ class CreativeToolbox(tk.Tk):
 
     def show_audio_vu(self):
         self.clear_content()
-        self.set_page_title("VU")
+        self.set_page_title("Tools")
         self.current_page = VuPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
@@ -2409,7 +2517,7 @@ class CreativeToolbox(tk.Tk):
 
     def show_tools(self):
         self.clear_content()
-        self.set_page_title("Tools")
+        self.set_page_title("Shortcuts")
         self.current_page = ToolsPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
@@ -2880,6 +2988,88 @@ def format_bytes(size):
     return f"{int(size)} B"
 
 
+def explorer_window_handles():
+    handles = []
+    try:
+        user32 = ctypes.windll.user32
+
+        def callback(hwnd, _lparam):
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            class_name = ctypes.create_unicode_buffer(256)
+            user32.GetClassNameW(hwnd, class_name, 256)
+            if class_name.value in ("CabinetWClass", "ExploreWClass"):
+                handles.append(hwnd)
+            return True
+
+        enum_proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(callback)
+        user32.EnumWindows(enum_proc, 0)
+    except Exception:
+        return []
+    return handles
+
+
+def move_explorer_windows_side_by_side(before_handles):
+    try:
+        time_module.sleep(0.8)
+        after_handles = explorer_window_handles()
+        new_handles = [hwnd for hwnd in after_handles if hwnd not in before_handles]
+        handles = new_handles[-2:] if len(new_handles) >= 2 else after_handles[-2:]
+        if len(handles) < 2:
+            return
+        user32 = ctypes.windll.user32
+        screen_w = user32.GetSystemMetrics(0)
+        screen_h = user32.GetSystemMetrics(1)
+        half_w = max(640, screen_w // 2)
+        height = max(520, screen_h - 80)
+        positions = [(0, 0, half_w, height), (half_w, 0, max(640, screen_w - half_w), height)]
+        for hwnd, (x, y, width, win_height) in zip(handles, positions):
+            user32.ShowWindow(hwnd, 9)
+            user32.MoveWindow(hwnd, x, y, width, win_height, True)
+    except Exception:
+        pass
+
+
+def open_dual_file_explorer(folder_path):
+    path = Path(folder_path)
+    if not path.exists():
+        messagebox.showerror("Folder not found", f"This folder does not exist:\n\n{path}")
+        return
+    before_handles = explorer_window_handles()
+    for _side in ("left", "right"):
+        try:
+            subprocess.Popen(["explorer.exe", str(path)], shell=False)
+        except Exception as exc:
+            messagebox.showerror("Could not open File Explorer", str(exc))
+            return
+    threading.Thread(target=move_explorer_windows_side_by_side, args=(before_handles,), daemon=True).start()
+
+
+class SimpleTooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.window = None
+        widget.bind("<Enter>", self.show, add="+")
+        widget.bind("<Leave>", self.hide, add="+")
+
+    def show(self, _event=None):
+        if self.window is not None:
+            return
+        x = self.widget.winfo_rootx() + 10
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 8
+        self.window = tk.Toplevel(self.widget)
+        self.window.wm_overrideredirect(True)
+        self.window.wm_geometry(f"+{x}+{y}")
+        label = ttk.Label(self.window, text=self.text, padding=(10, 6), style="CardText.TLabel")
+        label.pack()
+
+    def hide(self, _event=None):
+        if self.window is not None:
+            self.window.destroy()
+            self.window = None
+
+
 class ToolsPage(ttk.Frame):
     def __init__(self, parent, app):
         super().__init__(parent)
@@ -2914,7 +3104,7 @@ class ToolsPage(ttk.Frame):
         main.pack(fill="both", expand=True)
         title_row = ttk.Frame(main, style="Panel.TFrame")
         title_row.pack(fill="x", pady=(0, 14))
-        ttk.Label(title_row, text="Tools", style="CardTitle.TLabel").pack(side="left")
+        ttk.Label(title_row, text="Shortcuts", style="CardTitle.TLabel").pack(side="left")
 
         system_title = ttk.Frame(main, style="Panel.TFrame")
         system_title.pack(fill="x", pady=(0, 12))
@@ -2931,8 +3121,7 @@ class ToolsPage(ttk.Frame):
         self.create_action_tile(system_grid, 0, 1, "Outlook", "#8d3f3f", "Close outlook.exe", "Click to kill", self.app.kill_outlook, "outlook", "mail", "outlook.live.com")
         self.create_action_tile(system_grid, 0, 2, "Media cache", "#7b5f2a", "Checking...", "Click to delete", self.confirm_delete_cache, "cache", "trash", "microsoft.com")
         self.create_action_tile(system_grid, 1, 0, "YT Downloader", "#d93025", "Download videos", "Open tool", self.app.show_youtube_downloader, "youtube", "play", "youtube.com")
-        self.create_action_tile(system_grid, 1, 1, "Refresh", "#2f6f73", "Update tool status", "Click to refresh", self.refresh, "refresh", "refresh", "microsoft.com")
-        self.create_action_tile(system_grid, 1, 2, "Universe", "#6f42c1", "Open folder", "Browse in app", self.open_universe_browser, "universe", "tree", "lukestrom.com")
+        self.create_action_tile(system_grid, 1, 1, "LukeStrom MeloVerse Explorer", "#6f42c1", "Open creations", "Open two explorers", self.open_universe_browser, "universe", "tree", "lukestrom.com")
         self.layout_system_actions()
         self.cache_progress = ttk.Progressbar(main, mode="determinate", maximum=100)
         self.cache_progress_label = ttk.Label(main, textvariable=self.cache_progress_var, style="CardText.TLabel")
@@ -3004,10 +3193,7 @@ class ToolsPage(ttk.Frame):
         canvas.tag_lower("pane_background")
 
     def open_universe_browser(self):
-        self.app.clear_content()
-        self.app.set_page_title("Universe")
-        self.app.current_page = FolderBrowserPage(self.app.content, self.app, UNIVERSE_DIR, self.app.show_tools)
-        self.app.current_page.pack(fill="both", expand=True)
+        open_dual_file_explorer(UNIVERSE_DIR)
 
     def layout_system_actions(self):
         if self.system_grid is None:
@@ -3018,8 +3204,7 @@ class ToolsPage(ttk.Frame):
             "outlook": (0, 1),
             "cache": (0, 2),
             "youtube": (1, 0),
-            "refresh": (1, 1),
-            "universe": (1, 2),
+            "universe": (1, 1),
         }
         for key, position in positions.items():
             canvas = self.system_tiles.get(key)
@@ -3551,7 +3736,7 @@ class VuPage(ttk.Frame):
         main.rowconfigure(1, weight=1)
         header = ttk.Frame(main, style="Panel.TFrame")
         header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-        ttk.Label(header, text="VU", style="CardTitle.TLabel").pack(side="left")
+        ttk.Label(header, text="Tools", style="CardTitle.TLabel").pack(side="left")
         meter_button = ttk.Menubutton(header, text="VU meters")
         meter_button.pack(side="left", padx=(10, 0))
         meter_menu = tk.Menu(meter_button, tearoff=False)
@@ -3565,8 +3750,13 @@ class VuPage(ttk.Frame):
         meter_menu.add_separator()
         meter_menu.add_checkbutton(label="Audio L", variable=self.audio_left_var, command=self.layout_meters)
         meter_menu.add_checkbutton(label="Audio R", variable=self.audio_right_var, command=self.layout_meters)
-        audio_controls = ttk.Frame(header, style="Panel.TFrame")
-        audio_controls.pack(side="left", fill="x", expand=True, padx=(14, 0))
+        actions = ttk.Frame(header, style="Panel.TFrame")
+        actions.pack(side="left", fill="x", expand=True, padx=(14, 0))
+        self.create_header_action(actions, "OneDrive", self.toggle_onedrive, "Start or stop OneDrive syncing")
+        self.create_header_action(actions, "Outlook", self.app.kill_outlook, "Close outlook.exe")
+        self.create_header_action(actions, "Cache", self.app.delete_cacheclip, "Delete the media cache folder")
+        self.create_header_action(actions, "YT", self.app.show_youtube_downloader, "Open YouTube downloader")
+        self.create_header_action(actions, "MeloVerse", self.open_meloverse_explorer, "Open the LukeStrom MeloVerse Explorer")
 
         performance = ttk.Frame(main, style="Panel.TFrame")
         self.performance_container = performance
@@ -3594,9 +3784,25 @@ class VuPage(ttk.Frame):
             self,
             self.app,
             embedded_canvases=(self.audio_left_canvas, self.audio_right_canvas),
-            controls_parent=audio_controls,
+            controls_parent=None,
+            show_source_controls=False,
         )
         self.layout_meters()
+
+    def create_header_action(self, parent, text, command, tooltip):
+        button = ttk.Button(parent, text=text, command=command, style="NavLinks.TButton")
+        button.pack(side="left", padx=(0, 6))
+        SimpleTooltip(button, tooltip)
+        return button
+
+    def toggle_onedrive(self):
+        if is_onedrive_running():
+            self.app.stop_onedrive(on_change=self.refresh_performance)
+        else:
+            self.app.start_onedrive(on_change=self.refresh_performance)
+
+    def open_meloverse_explorer(self):
+        open_dual_file_explorer(UNIVERSE_DIR)
 
     def destroy(self):
         self.performance_running = False
@@ -3640,13 +3846,47 @@ class VuPage(ttk.Frame):
             self.performance_container.columnconfigure(0, weight=1)
             self.performance_container.rowconfigure(0, weight=1)
             return
-        column_count = 1 if len(visible) == 1 else 2 if len(visible) == 2 else 3
-        row_count = max(1, (len(visible) + column_count - 1) // column_count)
+        pairs = (("onedrive_upload", "onedrive_download"), ("audio_left", "audio_right"))
+        paired_keys = {key for pair in pairs if pair[0] in visible and pair[1] in visible for key in pair}
+        blocks = []
+        consumed = set()
+        for key in visible:
+            if key in consumed:
+                continue
+            pair = next((pair for pair in pairs if pair[0] == key and pair[1] in visible), None)
+            if pair is not None:
+                blocks.append(pair)
+                consumed.update(pair)
+            else:
+                blocks.append((key,))
+                consumed.add(key)
+        column_count = 1 if len(visible) == 1 else 2 if paired_keys else 3
+        placements = []
+        row = 0
+        col = 0
+        for block in blocks:
+            if len(block) == 2:
+                if col != 0:
+                    row += 1
+                    col = 0
+                placements.append((block[0], row, 0, 1))
+                placements.append((block[1], row, 1, 1))
+                row += 1
+                col = 0
+                continue
+            key = block[0]
+            span = column_count if column_count == 2 and col == 0 and row == len(blocks) - 1 else 1
+            placements.append((key, row, col, span))
+            col += span
+            if col >= column_count:
+                row += 1
+                col = 0
+        row_count = max(1, max((item[1] for item in placements), default=0) + 1)
         for column in range(column_count):
             self.performance_container.columnconfigure(column, weight=1, uniform="meters", minsize=0)
         for row in range(row_count):
             self.performance_container.rowconfigure(row, weight=1, uniform="meterrows", minsize=0)
-        for index, key in enumerate(visible):
+        for key, row, col, span in placements:
             canvas = self.performance_canvases.get(key)
             if key == "audio_left":
                 canvas = self.audio_left_canvas
@@ -3654,9 +3894,7 @@ class VuPage(ttk.Frame):
                 canvas = self.audio_right_canvas
             if canvas is None:
                 continue
-            row = index // column_count
-            col = index % column_count
-            canvas.grid(row=row, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0), pady=(0 if row == 0 else 8, 0))
+            canvas.grid(row=row, column=col, columnspan=span, sticky="nsew", padx=(0 if col == 0 else 8, 0), pady=(0 if row == 0 else 8, 0))
 
     def update_meter_menu_state(self, key, available):
         self.meter_availability[key] = available
@@ -3739,7 +3977,7 @@ class FolderBrowserPage(ttk.Frame):
         shell.pack(fill="both", expand=True)
         header = ttk.Frame(shell, style="Panel.TFrame")
         header.pack(fill="x", pady=(0, 12))
-        ttk.Label(header, text="LukeStrom universe", style="CardTitle.TLabel").pack(side="left")
+        ttk.Label(header, text="LukeStrom MeloVerse Explorer", style="CardTitle.TLabel").pack(side="left")
         ttk.Button(header, text="Open in File Explorer", command=self.open_current_in_explorer).pack(side="right", padx=(8, 0))
         ttk.Button(header, text="Back", command=self.back_command).pack(side="right")
         ttk.Button(header, text="Copy selected", command=self.copy_selected).pack(side="right", padx=(8, 0))
@@ -3849,6 +4087,132 @@ class FolderBrowserPage(ttk.Frame):
             os.startfile(str(self.current_path))
         except Exception as exc:
             messagebox.showerror("Could not open File Explorer", str(exc))
+
+
+class ExplorerPane(ttk.Frame):
+    def __init__(self, parent, app, root_path, title):
+        super().__init__(parent, style="Panel.TFrame", padding=10)
+        self.app = app
+        self.root_path = Path(root_path)
+        self.current_path = self.root_path
+        self.selected_path = None
+        self.selected_widget = None
+        self.path_var = tk.StringVar(value=str(self.current_path))
+        ttk.Label(self, text=title, style="CardTitle.TLabel").pack(anchor="w", pady=(0, 8))
+        controls = ttk.Frame(self, style="Panel.TFrame")
+        controls.pack(fill="x", pady=(0, 8))
+        ttk.Button(controls, text="Back", command=self.go_up).pack(side="left")
+        ttk.Button(controls, text="Copy selected", command=self.copy_selected).pack(side="left", padx=(8, 0))
+        ttk.Button(controls, text="Open in File Explorer", command=self.open_current_in_explorer).pack(side="right")
+        ttk.Label(self, textvariable=self.path_var, style="Muted.TLabel").pack(anchor="w", pady=(0, 8))
+        self.scroller = ScrollFrame(self)
+        self.scroller.pack(fill="both", expand=True)
+        self.scroller.canvas.configure(bg=self.app.colors["panel_bg"], highlightthickness=0)
+        self.scroller.body.configure(style="Panel.TFrame")
+        self.scroller.set_auto_scrollbar(True)
+        self.list_frame = self.scroller.body
+        self.show_folder(self.current_path)
+
+    def go_up(self):
+        if self.current_path != self.root_path:
+            self.show_folder(self.current_path.parent)
+
+    def show_folder(self, path):
+        path = Path(path)
+        if not str(path).lower().startswith(str(self.root_path).lower()):
+            path = self.root_path
+        self.current_path = path
+        self.selected_path = None
+        self.selected_widget = None
+        self.path_var.set(str(path))
+        for widget in self.list_frame.winfo_children():
+            widget.destroy()
+        if not path.exists():
+            ttk.Label(self.list_frame, text="Folder not found.", style="Muted.TLabel").pack(anchor="w", pady=8)
+            return
+        try:
+            folders = sorted([item for item in path.iterdir() if item.is_dir()], key=lambda item: item.name.lower())
+            files = sorted([item for item in path.iterdir() if item.is_file()], key=lambda item: item.name.lower())
+        except Exception as exc:
+            ttk.Label(self.list_frame, text=f"Could not read folder: {exc}", style="Muted.TLabel").pack(anchor="w", pady=8)
+            return
+        for item in folders + files:
+            self.add_item(item, item.is_dir())
+
+    def add_item(self, path, is_folder):
+        row = ttk.Frame(self.list_frame, style="Panel.TFrame", padding=(8, 5))
+        row.pack(fill="x", pady=2)
+        kind = "Folder" if is_folder else "File"
+        label = ttk.Label(row, text=f"{kind}  {path.name}", style="NavText.TLabel", cursor="hand2")
+        label.pack(side="left", fill="x", expand=True)
+        for widget in (row, label):
+            widget.bind("<Button-1>", lambda _event=None, w=row, p=path: self.select_item(w, p))
+            widget.bind("<Double-Button-1>", lambda _event=None, p=path, folder=is_folder: self.open_item(p, folder))
+
+    def select_item(self, widget, path):
+        if self.selected_widget is not None and self.selected_widget.winfo_exists():
+            self.selected_widget.configure(style="Panel.TFrame")
+        self.selected_widget = widget
+        self.selected_path = Path(path)
+        try:
+            widget.configure(style="Selected.TFrame")
+        except Exception:
+            pass
+
+    def open_item(self, path, is_folder):
+        if is_folder:
+            self.show_folder(path)
+            return
+        try:
+            os.startfile(str(path))
+        except Exception as exc:
+            messagebox.showerror("Could not open file", str(exc))
+
+    def copy_selected(self):
+        if self.selected_path is None:
+            messagebox.showinfo("Nothing selected", "Select a file or folder first.")
+            return
+        destination = filedialog.askdirectory(title="Copy selected item to")
+        if not destination:
+            return
+        target = Path(destination) / self.selected_path.name
+        try:
+            if self.selected_path.is_dir():
+                shutil.copytree(self.selected_path, target, dirs_exist_ok=True)
+            else:
+                shutil.copy2(self.selected_path, target)
+        except Exception as exc:
+            messagebox.showerror("Could not copy", str(exc))
+
+    def open_current_in_explorer(self):
+        try:
+            os.startfile(str(self.current_path))
+        except Exception as exc:
+            messagebox.showerror("Could not open File Explorer", str(exc))
+
+
+class DualFolderBrowserPage(ttk.Frame):
+    def __init__(self, parent, app, root_path, back_command):
+        super().__init__(parent)
+        self.app = app
+        self.root_path = Path(root_path)
+        self.back_command = back_command
+        self._build()
+
+    def _build(self):
+        shell = ttk.Frame(self, style="Panel.TFrame", padding=18)
+        shell.pack(fill="both", expand=True)
+        header = ttk.Frame(shell, style="Panel.TFrame")
+        header.pack(fill="x", pady=(0, 12))
+        ttk.Label(header, text="LukeStrom MeloVerse Explorer", style="CardTitle.TLabel").pack(side="left")
+        ttk.Button(header, text="Back", command=self.back_command).pack(side="right")
+        panes = ttk.Frame(shell, style="Panel.TFrame")
+        panes.pack(fill="both", expand=True)
+        panes.columnconfigure(0, weight=1, uniform="meloverse")
+        panes.columnconfigure(1, weight=1, uniform="meloverse")
+        panes.rowconfigure(0, weight=1)
+        ExplorerPane(panes, self.app, self.root_path, "Left pane").grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        ExplorerPane(panes, self.app, self.root_path, "Right pane").grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
 
 class ChatGPTLinksPage(ttk.Frame):
@@ -4028,8 +4392,8 @@ class HomePage(ttk.Frame):
         self._tile(tiles, 0, 0, "Song Analyzer", self.app.show_song_analyzer, "#2f6f73")
         self._tile(tiles, 0, 1, "Reel Design", self.app.show_reel_design, "#7b5f2a")
         self._tile(tiles, 0, 2, "Campaign Planner", self.app.show_post_planner, "#4f6f8f")
-        self._tile(tiles, 1, 0, "VU", self.app.show_audio_vu, "#8d3f3f")
-        self._tile(tiles, 1, 1, "Tools", self.app.show_tools, "#5b6770")
+        self._tile(tiles, 1, 0, "Tools", self.app.show_audio_vu, "#8d3f3f")
+        self._tile(tiles, 1, 1, "Shortcuts", self.app.show_tools, "#5b6770")
         self._tile(tiles, 1, 2, "Metrics", self.app.show_metrics, "#5b6770")
 
     def _tile(self, parent, row, column, title, command, color):
@@ -4177,11 +4541,12 @@ class HomePage(ttk.Frame):
 
 
 class AudioVuPage(ttk.Frame):
-    def __init__(self, parent, app, embedded_canvases=None, controls_parent=None):
+    def __init__(self, parent, app, embedded_canvases=None, controls_parent=None, show_source_controls=True):
         super().__init__(parent)
         self.app = app
         self.embedded_canvases = embedded_canvases
         self.controls_parent = controls_parent
+        self.show_source_controls = show_source_controls
         self.background_paths = find_tile_backgrounds()
         self.running = True
         self.stream = None
@@ -4213,7 +4578,6 @@ class AudioVuPage(ttk.Frame):
             self.left_canvas.bind("<Configure>", lambda _event=None: self.draw_audio_meter(self.left_canvas, self.display_left))
             self.right_canvas.bind("<Configure>", lambda _event=None: self.draw_audio_meter(self.right_canvas, self.display_right))
             controls = self.controls_parent or self
-            ttk.Label(controls, text="Audio source", style="CardText.TLabel").pack(side="left", padx=(0, 6))
             self.status_var = tk.StringVar(value="")
             self.engine_var = tk.StringVar(value="")
             self.source_list = tk.Listbox(controls, height=1, activestyle="none", exportselection=False, font=("Segoe UI", 9), width=38)
@@ -4224,7 +4588,9 @@ class AudioVuPage(ttk.Frame):
                 selectforeground="#ffffff",
                 highlightbackground=self.app.colors["border"],
             )
-            self.source_list.pack(side="left", fill="x", expand=True)
+            if self.show_source_controls:
+                ttk.Label(controls, text="Audio source", style="CardText.TLabel").pack(side="left", padx=(0, 6))
+                self.source_list.pack(side="left", fill="x", expand=True)
             self.source_list.bind("<<ListboxSelect>>", self.on_audio_source_select)
             self.rotate_backgrounds()
             self.start_audio()
@@ -5334,6 +5700,13 @@ class MetricsPage(ttk.Frame):
         self.app.style_chart_canvas(self.followers_canvas)
         self.platform_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
         self.app.style_chart_canvas(self.platform_canvas)
+        observations = ttk.Frame(self.dashboard, style="Panel.TFrame", padding=12)
+        self.weekly_observations_panel = observations
+        ttk.Label(observations, text="Weekly observations", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 8))
+        self.weekly_observations_text = tk.Text(observations, height=7, wrap="word", font=("Segoe UI", 10), padx=10, pady=10)
+        self.app.style_text_widget(self.weekly_observations_text)
+        self.weekly_observations_text.bind("<Key>", lambda _event: "break")
+        self.weekly_observations_text.pack(fill="both", expand=True)
         self.monthly_impressions_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
         self.app.style_chart_canvas(self.monthly_impressions_canvas)
         self.monthly_followers_canvas = tk.Canvas(self.dashboard, height=230, bg=self.app.colors["panel_bg"], highlightthickness=0)
@@ -5385,6 +5758,7 @@ class MetricsPage(ttk.Frame):
             self.views_canvas,
             self.followers_canvas,
             self.platform_canvas,
+            self.weekly_observations_panel,
             self.monthly_impressions_canvas,
             self.monthly_followers_canvas,
             self.monthly_posts_canvas,
@@ -5394,7 +5768,7 @@ class MetricsPage(ttk.Frame):
         for widget in widgets:
             widget.grid_forget()
         width = max(1, self.dashboard.winfo_width())
-        for index in range(8):
+        for index in range(len(widgets)):
             self.dashboard.rowconfigure(index, weight=0)
             self.dashboard.columnconfigure(index, weight=0)
         if width < 720:
@@ -5515,8 +5889,46 @@ class MetricsPage(ttk.Frame):
         self.draw_views_chart()
         self.draw_followers_chart()
         self.draw_platform_chart()
+        self.load_weekly_observations()
         self.draw_monthly_charts()
         self.load_monthly_recommendations()
+
+    def load_weekly_observations(self):
+        if not hasattr(self, "weekly_observations_text"):
+            return
+        lines = []
+        if not self.rows:
+            lines = ["waiting for weekly data..."]
+        else:
+            latest = self.rows[-1]
+            previous = self.rows[-2] if len(self.rows) >= 2 else None
+            platforms = [
+                ("TikTok", latest["tt_views"], previous["tt_views"] if previous else None),
+                ("Instagram", latest["ig_views"], previous["ig_views"] if previous else None),
+                ("YouTube", latest["yt_views"], previous["yt_views"] if previous else None),
+                ("Facebook", latest["fb_views"], previous["fb_views"] if previous else None),
+            ]
+            best_name, best_value, _previous_value = max(platforms, key=lambda item: item[1])
+            total = sum(value for _name, value, _old in platforms)
+            lines.append(f"Best platform this week: {best_name} with {best_value:,} impressions.")
+            if previous is not None:
+                previous_total = sum(previous[f"{prefix}_views"] for prefix in ("tt", "ig", "yt", "fb"))
+                lines.append(f"Weekly movement: {self.growth_text(total, previous_total)}.")
+                movers = []
+                for name, value, old_value in platforms:
+                    if old_value is None:
+                        continue
+                    movers.append((value - old_value, name))
+                if movers:
+                    change, name = max(movers, key=lambda item: abs(item[0]))
+                    direction = "up" if change >= 0 else "down"
+                    lines.append(f"Biggest platform movement: {name} {direction} {abs(change):,} impressions.")
+            else:
+                lines.append("Add one more week to unlock week-over-week observations.")
+        self.weekly_observations_text.configure(state="normal")
+        self.weekly_observations_text.delete("1.0", tk.END)
+        self.weekly_observations_text.insert(tk.END, "\n\n".join(lines))
+        self.weekly_observations_text.configure(state="disabled")
 
     def load_monthly_recommendations(self):
         if not hasattr(self, "recommendations_text"):
