@@ -67,7 +67,7 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V4.5"
+APP_VERSION = "V4.6"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
 APP_ICON_FILENAME = "260414 logo lukestrom round.png"
@@ -499,6 +499,10 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 ## Current version
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
+
+## V4.6
+- Monthly charts now display a single-month platform snapshot when only one Monthly row exists.
+- Once two or more months are available, the monthly charts automatically switch back to trend lines.
 
 ## V4.5
 - Audio L/R and Upload/Download are now placed as fixed VU meter pairs, so they cannot split onto separate rows.
@@ -6205,7 +6209,7 @@ class MetricsPage(ttk.Frame):
         rounded_rect(canvas, 0, 0, width, height, radius=10, fill=self.app.colors["chart_bg"], outline=self.app.colors["border"])
         canvas.create_text(16, 14, text=title, anchor="nw", font=("Segoe UI", 12, "bold"), fill=self.app.colors["text"])
         data = self.monthly_rows[-12:]
-        if len(data) < 2:
+        if not data:
             canvas.create_text(16, 52, text="waiting for monthly data...", anchor="nw", font=("Segoe UI", 9), fill=self.app.colors["muted"])
             return
         platform_labels = ["Facebook", "Instagram", "TikTok", "YouTube"]
@@ -6217,6 +6221,24 @@ class MetricsPage(ttk.Frame):
             y = bottom - (bottom - top) * step / 4
             canvas.create_line(left - 4, y, right, y, fill=self.app.colors["grid"])
             canvas.create_text(left - 8, y, text=f"{int(value):,}", anchor="e", font=("Segoe UI", 8), fill=self.app.colors["muted"])
+        if len(data) == 1:
+            row = data[0]
+            bar_gap = 10
+            usable_height = max(40, bottom - top - bar_gap * 3)
+            bar_height = usable_height / 4
+            label_width = 76
+            bar_left = left + label_width
+            for idx, (key, label, color) in enumerate(zip(keys, platform_labels, colors)):
+                y1 = top + idx * (bar_height + bar_gap)
+                y2 = y1 + bar_height
+                value = row[key]
+                bar_right = bar_left + (right - bar_left - 44) * value / max_value
+                canvas.create_text(left, (y1 + y2) / 2, text=label, anchor="w", font=("Segoe UI", 8), fill=self.app.colors["text"])
+                rounded_rect(canvas, bar_left, y1, right - 44, y2, radius=6, fill=self.app.colors["grid"], outline="")
+                rounded_rect(canvas, bar_left, y1, max(bar_left + 4, bar_right), y2, radius=6, fill=color, outline="")
+                canvas.create_text(right - 38, (y1 + y2) / 2, text=f"{value:,}", anchor="w", font=("Segoe UI", 8), fill=self.app.colors["text"])
+            canvas.create_text(left, bottom + 14, text=row["month"], font=("Segoe UI", 8), fill=self.app.colors["muted"], anchor="w")
+            return
         for key, label, color in zip(keys, platform_labels, colors):
             points = []
             for idx, row in enumerate(data):
