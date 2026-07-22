@@ -6,6 +6,7 @@ import io
 import json
 import math
 import os
+import queue
 import random
 import re
 import shutil
@@ -67,7 +68,7 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V4.6"
+APP_VERSION = "V5.0"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
 APP_ICON_FILENAME = "260414 logo lukestrom round.png"
@@ -84,6 +85,7 @@ DEFAULT_TILE_ARTWORK_OPACITY_PERCENT = 50
 DEFAULT_VU_ARTWORK_OPACITY_PERCENT = 15
 CACHECLIP_DIR = Path(r"D:\OneDrive\Production\creations\misc\video\mediacache\CacheClip")
 UNIVERSE_DIR = Path(r"D:\OneDrive\Production\creations")
+SD_IMPORT_DEST_DIR = Path(r"J:\Production\uploads\images")
 EXTERNAL_APP_ICON_PATH = Path(r"D:\OneDrive\Production\uploads") / APP_ICON_FILENAME
 SETTINGS_DIR = Path(os.getenv("APPDATA", str(Path.home()))) / "Creative Toolbox"
 SETTINGS_FILE = SETTINGS_DIR / "settings.json"
@@ -228,6 +230,100 @@ Cigarette Denim Leather Ponytail Compass Compassion Story Legend Tomorrow Home
 
 FIRST_POST_OFFSETS = [0, 3, 8, 15]
 REPOST_START_OFFSETS = [21, 46, 76, 111]
+
+GROUP_A_HOOKS = {
+    "Guitar Files": [
+        "The secret weapon behind this guitar tone...",
+        "Why this 30-year-old guitar still makes the cut...",
+        "How we tuned this guitar layer to cut through the mix...",
+        "The tiny guitar detail that changed the whole section...",
+        "What this guitar part adds before you even notice it...",
+    ],
+    "Studio Files": [
+        "How we built the massive wall of sound for this section...",
+        "Inside the analog vs. digital signal chain for this track...",
+        "The accidental studio tweak that saved this song...",
+        "The studio move that made this chorus feel bigger...",
+        "Why this take stayed in the final mix...",
+    ],
+    "Studio Visits": [
+        "When the studio becomes a world of its own...",
+        "Stepping inside the control room for a private listen...",
+        "What actually happens during a late-night playback session...",
+        "A quick visit to the room where the track came alive...",
+        "The moment the studio stopped feeling like a studio...",
+    ],
+    "LukeStrom Tech": [
+        "Building custom software to run an independent music universe...",
+        "Why off-the-shelf tools weren't enough for this project...",
+        "How the code behind our releases actually works...",
+        "The small tool that keeps the whole workflow moving...",
+        "Turning creative chaos into one working control panel...",
+    ],
+    "Song Stories": [
+        "My 7-year-old co-wrote the lyrics to this line...",
+        "Dolly Parton begged Jolene in '73. In 2026, we ask Chatty...",
+        "The true story behind the lyrics you're hearing...",
+        "This line started as a joke and became the heart of the song...",
+        "The lyric that only made sense years later...",
+    ],
+    "The World of LukeStrom": [
+        "Welcome to a universe where music rules everything...",
+        "The hidden connection between these two tracks...",
+        "How this scene fits into the bigger storyline...",
+        "A small detail from the MeloVerse you might have missed...",
+        "This is where the song becomes part of the world...",
+    ],
+    "The Archive": [
+        "Opening a 30-year-old vault of unreleased music...",
+        "The original demo vs. how it sounds today...",
+        "Found this forgotten track from decades ago...",
+        "A piece of the archive that still feels alive...",
+        "What survived from the first version of this idea...",
+    ],
+    "LukeStrom Builds": [
+        "Modding and customizing gear for the MeloVerse sound...",
+        "From raw parts to stage-ready instrument...",
+        "The custom build that shaped this entire album...",
+        "A build detail most people would never notice...",
+        "Why this setup became part of the LukeStrom sound...",
+    ],
+    "Creation Files": [
+        "Watch how this song grew from a simple acoustic riff...",
+        "How we arranged 8 identical guitar tracks into one monster line...",
+        "The exact moment this melody came together...",
+        "From rough idea to finished scene...",
+        "The creative decision that made the track finally click...",
+    ],
+    "Photo Stories": [
+        "The story behind this snapshot in time...",
+        "Behind the scenes of the visual production...",
+        "Uncovering the visual history of the MeloVerse...",
+        "One image, one memory, one piece of the story...",
+        "The photo that quietly explains the whole mood...",
+    ],
+    "How It All Began": [
+        "Before the software, before the videos: the origin story...",
+        "How a simple fascination turned into a complete universe...",
+        "The very first track that started this entire journey...",
+        "The beginning was smaller than you might think...",
+        "This is the moment the project found its direction...",
+    ],
+    "Character Files": [
+        "Why does the backing band all have the same face and moustache?",
+        "Meet the quiet force behind Mou Mou's sound...",
+        "The backstory of the 8-man military grunge platoon...",
+        "A character detail that explains more than it should...",
+        "The person behind the scene is part of the song too...",
+    ],
+    "MeloVerse Collections": [
+        "Bringing together the chapters of the MeloVerse...",
+        "The complete visual and musical timeline so far...",
+        "A curated dive into the core themes of our universe...",
+        "How these separate pieces connect into one bigger story...",
+        "The collection that shows where the MeloVerse is heading...",
+    ],
+}
 
 
 def resource_root():
@@ -499,6 +595,36 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 ## Current version
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
+
+## V5.0
+- Reel Design now has a Post group selector with Group B as the default unchanged workflow.
+- Group A adds Category and Text hook dropdowns for Pillar / Storytelling reels.
+- Group A includes 13 LukeStrom series categories.
+- Each Group A category now has 5 editable starter text hooks.
+- Selecting a Group A hook inserts it into the active Opening text box, or the first post box when none is active.
+
+## V4.9
+- Shortcuts no longer shows the old System actions section.
+- System actions now live in the Tools bar above the VU meters.
+- Tools hover pop-ups now show live practical details, including OneDrive rates and media cache size.
+- SD Import now explains when it is using Downloads as fallback because J:\\Production\\uploads\\images is unavailable.
+
+## V4.8
+- SD Import now works as a listener: after pressing Start listener it keeps watching for inserted SD/removable cards.
+- When a card is detected, SD Import waits briefly for the drive to stabilize, then imports automatically.
+- After import, SD Import attempts to eject the drive through Windows.
+- After each session, SD Import attempts to send an email summary through the existing emailmodule when available.
+- Imported cards are remembered until removed, so the same card is not imported again if eject fails.
+
+## V4.7
+- SD Import was added to the Tools bar above the VU meters.
+- SD Import copies all files from selected removable drives, not only ARW files.
+- SD Import uses J:\\Production\\uploads\\images by default and creates the images folder when possible.
+- If the J: destination is not available, SD Import falls back to the local Downloads folder.
+- SD Import runs in the background and shows progress/log output in its own window.
+- Tools bar hover help was expanded into a clearer detail pop-up per action.
+- Metrics monthly loading now reads Excel in read-only mode for better performance and fewer conflicts while Excel is open.
+- Weekly entry labels now say impressions while keeping the existing worksheet structure compatible.
 
 ## V4.6
 - Monthly charts now display a single-month platform snapshot when only one Monthly row exists.
@@ -795,13 +921,13 @@ Use this when you want a release or posting plan. Enter the song details, number
 Open this from Tools. Use it to download a full YouTube video or only a segment. Paste the link. Leave Start and End empty for the full video, or enter times like 00:30 and 00:45 for a segment. The downloader automatically tries the highest available quality and puts the actual resolution in the filename.
 
 ## Tools
-Use Tools when you want live meters and quick system actions in one screen. The grid can show processor, memory, disk, network, GPU, temperature when available, OneDrive upload/download activity, and Audio L/R. Use the VU meters menu to choose which meters are visible. The small action buttons can start or stop OneDrive, close Outlook, delete the media cache, open YouTube Downloader, or open the MeloVerse Explorer.
+Use Tools when you want live meters and quick system actions in one screen. The grid can show processor, memory, disk, network, GPU, temperature when available, OneDrive upload/download activity, and Audio L/R. Use the VU meters menu to choose which meters are visible. The small action buttons can start or stop OneDrive, close Outlook, delete the media cache, start the SD card import listener, open YouTube Downloader, or open the MeloVerse Explorer. Hover over an action button to see details.
 
 ## Shortcuts
 Use Shortcuts for creator links and quick utilities. OneDrive, Outlook, Media Cache, YouTube Downloader, and the LukeStrom MeloVerse Explorer are system action tiles. Web shortcut tiles open creator sites in Chrome. The ChatGPT tile opens your project links.
 
 ## Metrics
-Use Metrics to keep weekly operational stats and monthly strategic stats. Weekly answers what happened this week: enter impressions and followers per platform, then save the week to Excel. Monthly answers how the project is developing over time: fill the Monthly worksheet with Metricool report values and ChatGPT analysis. The dashboard shows weekly impressions, weekly followers, platform MVP, monthly KPI cards, monthly trend charts, Dashboard Summary, and Next Month Focus.
+Use Metrics to keep weekly operational stats and monthly strategic stats. Weekly answers what happened this week: enter impressions and followers per platform, then save the week to Excel. The existing Weekly worksheet structure is kept for compatibility even though some internal names still say views. Monthly answers how the project is developing over time: fill the Monthly worksheet with Metricool report values and ChatGPT analysis. The dashboard shows weekly impressions, weekly followers, platform MVP, monthly KPI cards, monthly trend charts, Dashboard Summary, and Next Month Focus.
 
 ## Hamburger Menu
 Use the hamburger menu for settings and help. Artwork controls the picture folder, image interval, tile opacity, and VU opacity. Fonts controls custom fonts, basic font mode, font interval, and title size. Metrics controls the Excel file location and can export a starter template. Info sits at the bottom and contains Release notes and this How to.
@@ -1405,16 +1531,11 @@ def load_monthly_rows():
     workbook_path = get_metrics_workbook_path()
     if not workbook_path.exists():
         return []
-    try:
-        wb_edit = load_workbook(workbook_path)
-        if not any(name.lower() == "monthly" for name in wb_edit.sheetnames):
-            ensure_monthly_worksheet(wb_edit)
-            wb_edit.save(workbook_path)
-        wb_edit.close()
-    except Exception:
-        pass
-    wb = load_workbook(workbook_path, data_only=True)
-    ws = ensure_monthly_worksheet(wb)
+    wb = load_workbook(workbook_path, data_only=True, read_only=True)
+    monthly_name = next((name for name in wb.sheetnames if name.lower() == "monthly"), None)
+    if monthly_name is None:
+        return []
+    ws = wb[monthly_name]
     if ws.max_row <= 1:
         return []
 
@@ -2992,6 +3113,102 @@ def format_bytes(size):
     return f"{int(size)} B"
 
 
+def safe_copy_destination(dest_dir, filename):
+    candidate = Path(dest_dir) / filename
+    if not candidate.exists():
+        return candidate
+    stem = candidate.stem
+    suffix = candidate.suffix
+    counter = 1
+    while True:
+        alternative = candidate.with_name(f"{stem} ({counter}){suffix}")
+        if not alternative.exists():
+            return alternative
+        counter += 1
+
+
+def sd_import_destination():
+    try:
+        SD_IMPORT_DEST_DIR.mkdir(parents=True, exist_ok=True)
+        if SD_IMPORT_DEST_DIR.exists():
+            return SD_IMPORT_DEST_DIR
+    except Exception:
+        pass
+    DOWNLOADS_PATH.mkdir(parents=True, exist_ok=True)
+    return DOWNLOADS_PATH
+
+
+def removable_drive_roots():
+    roots = []
+    try:
+        kernel32 = ctypes.windll.kernel32
+        for letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
+            root = f"{letter}:\\"
+            if kernel32.GetDriveTypeW(root) == 2 and Path(root).exists():
+                roots.append(Path(root))
+    except Exception:
+        pass
+    for fallback in (Path("E:\\"), Path("F:\\")):
+        if fallback.exists() and fallback not in roots:
+            roots.append(fallback)
+    return roots
+
+
+def iter_import_files(root):
+    for folder, _dirs, files in os.walk(root):
+        for name in files:
+            path = Path(folder) / name
+            try:
+                if path.is_file():
+                    yield path
+            except Exception:
+                pass
+
+
+def copy_file_verified(src, dest_dir):
+    dst = safe_copy_destination(dest_dir, src.name)
+    shutil.copy2(src, dst)
+    if src.stat().st_size != dst.stat().st_size:
+        try:
+            dst.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise IOError(f"Size mismatch for {src.name}")
+    return dst
+
+
+def eject_drive(drive):
+    try:
+        drive_text = str(Path(drive)).rstrip("\\")
+        script = (
+            "$shell = New-Object -ComObject Shell.Application; "
+            "$drive = $shell.Namespace(17).ParseName('" + drive_text.replace("'", "''") + "'); "
+            "if ($drive) { $drive.InvokeVerb('Eject'); 'Eject requested' } else { 'Drive not found for eject' }"
+        )
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=8,
+        )
+        detail = (result.stdout or result.stderr or "").strip()
+        return result.returncode == 0, detail or "Eject requested"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def send_sd_import_email(subject, body):
+    try:
+        for candidate in (BASE_DIR, BASE_DIR.parent / "archive" / "1-sdcard_listener", Path(__file__).resolve().parent):
+            if candidate.exists() and str(candidate) not in sys.path:
+                sys.path.insert(0, str(candidate))
+        from emailmodule import send_email
+        send_email(subject=subject, body=body)
+        return True, "Email sent."
+    except Exception as exc:
+        return False, f"Email not sent: {exc}"
+
+
 def explorer_window_handles():
     handles = []
     try:
@@ -3065,13 +3282,256 @@ class SimpleTooltip:
         self.window = tk.Toplevel(self.widget)
         self.window.wm_overrideredirect(True)
         self.window.wm_geometry(f"+{x}+{y}")
-        label = ttk.Label(self.window, text=self.text, padding=(10, 6), style="CardText.TLabel")
+        text = self.text() if callable(self.text) else self.text
+        bg = "#fff7d6"
+        fg = "#1c1710"
+        label = tk.Label(
+            self.window,
+            text=text,
+            padx=12,
+            pady=8,
+            justify="left",
+            wraplength=360,
+            bg=bg,
+            fg=fg,
+            relief="solid",
+            borderwidth=1,
+            font=("Segoe UI", 9),
+        )
         label.pack()
 
     def hide(self, _event=None):
         if self.window is not None:
             self.window.destroy()
             self.window = None
+
+
+class SDImportWindow(tk.Toplevel):
+    def __init__(self, app):
+        super().__init__(app)
+        self.app = app
+        self.title(f"{APP_TITLE} - SD Import")
+        self.geometry("760x520")
+        self.minsize(620, 420)
+        self.configure(bg=self.app.colors["app_bg"])
+        self.stop_event = threading.Event()
+        self.worker = None
+        self.queue = queue.Queue()
+        self.drive_vars = {}
+        self.processed_drives = set()
+        self._build()
+        self.refresh_drives()
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.after(100, self.poll_queue)
+
+    def _build(self):
+        shell = ttk.Frame(self, style="Panel.TFrame", padding=18)
+        shell.pack(fill="both", expand=True)
+        ttk.Label(shell, text="SD Import", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+        self.dest_var = tk.StringVar(value=self.destination_text())
+        ttk.Label(shell, textvariable=self.dest_var, style="CardText.TLabel").pack(anchor="w", pady=(0, 12))
+
+        self.drives_frame = ttk.Frame(shell, style="Panel.TFrame")
+        self.drives_frame.pack(fill="x", pady=(0, 12))
+
+        controls = ttk.Frame(shell, style="Panel.TFrame")
+        controls.pack(fill="x", pady=(0, 12))
+        self.start_button = ttk.Button(controls, text="Start listener", command=self.start_import, style="Accent.TButton")
+        self.start_button.pack(side="left")
+        self.stop_button = ttk.Button(controls, text="Stop", command=self.stop_import, state="disabled")
+        self.stop_button.pack(side="left", padx=(8, 0))
+        ttk.Button(controls, text="Refresh drives", command=self.refresh_drives).pack(side="left", padx=(8, 0))
+        ttk.Button(controls, text="Open destination", command=lambda: os.startfile(str(Path(self.dest_var.get())))).pack(side="right")
+
+        self.progress = ttk.Progressbar(shell, mode="determinate", maximum=100)
+        self.progress.pack(fill="x", pady=(0, 8))
+        self.progress_var = tk.StringVar(value="Ready. Press Start listener to watch for SD cards.")
+        ttk.Label(shell, textvariable=self.progress_var, style="CardText.TLabel").pack(anchor="w", pady=(0, 8))
+
+        self.log = tk.Text(shell, height=14, wrap="word", font=("Consolas", 9), padx=10, pady=10)
+        self.app.style_text_widget(self.log)
+        self.log.pack(fill="both", expand=True)
+
+    def refresh_drives(self):
+        for widget in self.drives_frame.winfo_children():
+            widget.destroy()
+        self.drive_vars.clear()
+        drives = removable_drive_roots()
+        if not drives:
+            ttk.Label(self.drives_frame, text="No removable drives detected yet. Start listener can wait for a card.", style="Muted.TLabel").pack(anchor="w")
+            return
+        ttk.Label(self.drives_frame, text="Source drives", style="CardText.TLabel").pack(anchor="w", pady=(0, 4))
+        for drive in drives:
+            var = tk.BooleanVar(value=True)
+            self.drive_vars[str(drive)] = var
+            ttk.Checkbutton(self.drives_frame, text=str(drive), variable=var).pack(anchor="w")
+
+    def append_log(self, text):
+        self.log.insert("end", text + "\n")
+        self.log.see("end")
+
+    def selected_drives(self):
+        return [Path(path) for path, var in self.drive_vars.items() if var.get()]
+
+    def destination_text(self):
+        destination = sd_import_destination()
+        if destination == SD_IMPORT_DEST_DIR:
+            return f"Destination: {destination}"
+        return f"Destination: {destination} (fallback: J:\\Production\\uploads\\images is not available)"
+
+    def start_import(self):
+        destination = sd_import_destination()
+        self.dest_var.set(self.destination_text())
+        self.stop_event.clear()
+        self.start_button.configure(state="disabled")
+        self.stop_button.configure(state="normal")
+        self.progress.configure(value=0)
+        self.progress_var.set("Listening for SD cards...")
+        self.append_log("Listener started. Insert an SD card to import automatically.")
+        self.worker = threading.Thread(target=self.listener_worker, args=(destination,), daemon=True)
+        self.worker.start()
+
+    def stop_import(self):
+        self.stop_event.set()
+        self.progress_var.set("Stopping listener after current action...")
+
+    def close(self):
+        self.stop_event.set()
+        self.destroy()
+
+    def listener_worker(self, destination):
+        stable_seen = {}
+        stable_seconds = 5
+        poll_seconds = 2
+        while not self.stop_event.is_set():
+            drives = removable_drive_roots()
+            drive_keys = {str(drive) for drive in drives}
+            self.processed_drives.intersection_update(drive_keys)
+            for stale in list(stable_seen):
+                if stale not in drive_keys:
+                    stable_seen.pop(stale, None)
+            for drive in drives:
+                key = str(drive)
+                if key in self.processed_drives:
+                    continue
+                first_seen = stable_seen.setdefault(key, time_module.time())
+                if time_module.time() - first_seen < stable_seconds:
+                    self.queue.put(("status", f"Detected {key}. Waiting for it to stabilize..."))
+                    continue
+                self.queue.put(("log", f"SD card ready: {key}"))
+                summary = self.import_drive(drive, destination)
+                eject_ok, eject_msg = eject_drive(drive)
+                summary["ejected"] = "YES" if eject_ok else "NO"
+                summary["eject_msg"] = eject_msg
+                body = self.sd_summary_text(summary)
+                self.queue.put(("log", body))
+                email_ok, email_msg = send_sd_import_email("SD Import: Session Summary", body)
+                self.queue.put(("log", email_msg))
+                self.processed_drives.add(key)
+                stable_seen.pop(key, None)
+                self.queue.put(("status", "Listening for the next SD card..."))
+            time_module.sleep(poll_seconds)
+        self.queue.put(("done", "Listener stopped."))
+
+    def import_drive(self, drive, destination):
+        files = list(iter_import_files(drive))
+        total = len(files)
+        copied = 0
+        errors = []
+        self.queue.put(("log", f"Found {total:,} file(s) on {drive}."))
+        for index, src in enumerate(files, start=1):
+            if self.stop_event.is_set():
+                break
+            try:
+                dst = copy_file_verified(src, destination)
+                copied += 1
+                self.queue.put(("log", f"Copied: {src.name} -> {dst.name}"))
+            except Exception as exc:
+                errors.append(f"{src}: {exc}")
+                self.queue.put(("log", f"Error: {src} | {exc}"))
+            self.queue.put(("progress", index, max(1, total), copied, len(errors)))
+        return {
+            "drive": str(drive),
+            "destination": str(destination),
+            "found": total,
+            "copied": copied,
+            "errors": errors,
+            "completed": not self.stop_event.is_set(),
+        }
+
+    def sd_summary_text(self, summary):
+        lines = [
+            "SD Import - Session Summary",
+            "",
+            f"Drive: {summary.get('drive', '-')}",
+            f"Destination: {summary.get('destination', '-')}",
+            f"Found: {summary.get('found', 0):,}",
+            f"Copied: {summary.get('copied', 0):,}",
+            f"Ejected: {summary.get('ejected', 'NO')}",
+        ]
+        if summary.get("eject_msg"):
+            lines.append(f"Eject note: {summary['eject_msg']}")
+        errors = summary.get("errors") or []
+        if errors:
+            lines.append("")
+            lines.append("Errors:")
+            lines.extend(f"- {error}" for error in errors[:20])
+            if len(errors) > 20:
+                lines.append(f"- ... {len(errors) - 20} more")
+        if not summary.get("completed", True):
+            lines.append("")
+            lines.append("NOTE: Import was stopped before completion.")
+        return "\n".join(lines)
+
+    def import_worker(self, drives, destination):
+        try:
+            files = []
+            for drive in drives:
+                files.extend(iter_import_files(drive))
+            total = len(files)
+            self.queue.put(("log", f"Found {total:,} file(s)."))
+            if total == 0:
+                self.queue.put(("done", "No files found."))
+                return
+            copied = 0
+            errors = 0
+            for index, src in enumerate(files, start=1):
+                if self.stop_event.is_set():
+                    self.queue.put(("done", f"Stopped. Copied {copied:,} of {total:,} file(s)."))
+                    return
+                try:
+                    dst = copy_file_verified(src, destination)
+                    copied += 1
+                    self.queue.put(("log", f"Copied: {src.name} -> {dst.name}"))
+                except Exception as exc:
+                    errors += 1
+                    self.queue.put(("log", f"Error: {src} | {exc}"))
+                self.queue.put(("progress", index, total, copied, errors))
+            self.queue.put(("done", f"Done. Copied {copied:,} of {total:,} file(s). Errors: {errors:,}."))
+        except Exception as exc:
+            self.queue.put(("done", f"Import failed: {exc}"))
+
+    def poll_queue(self):
+        try:
+            while True:
+                item = self.queue.get_nowait()
+                if item[0] == "log":
+                    self.append_log(item[1])
+                elif item[0] == "status":
+                    self.progress_var.set(item[1])
+                elif item[0] == "progress":
+                    _kind, index, total, copied, errors = item
+                    self.progress.configure(value=100 * index / max(1, total))
+                    self.progress_var.set(f"{index:,}/{total:,} checked | {copied:,} copied | {errors:,} errors")
+                elif item[0] == "done":
+                    self.progress_var.set(item[1])
+                    self.append_log(item[1])
+                    self.start_button.configure(state="normal")
+                    self.stop_button.configure(state="disabled")
+        except queue.Empty:
+            pass
+        if self.winfo_exists():
+            self.after(100, self.poll_queue)
 
 
 class ToolsPage(ttk.Frame):
@@ -3110,27 +3570,10 @@ class ToolsPage(ttk.Frame):
         title_row.pack(fill="x", pady=(0, 14))
         ttk.Label(title_row, text="Shortcuts", style="CardTitle.TLabel").pack(side="left")
 
-        system_title = ttk.Frame(main, style="Panel.TFrame")
-        system_title.pack(fill="x", pady=(0, 12))
-        ttk.Label(system_title, text="System actions", style="CardTitle.TLabel").pack(side="left")
-        system_grid = tk.Canvas(main, height=260, bg=self.app.colors["panel_bg"], highlightthickness=0)
-        self.system_grid = system_grid
-        system_grid.pack(fill="x", pady=(0, 18))
-        for col in range(3):
-            system_grid.columnconfigure(col, weight=1, uniform="systemtiles")
-        for row in range(2):
-            system_grid.rowconfigure(row, weight=1, uniform="systemrows")
-        system_grid.bind("<Configure>", lambda _event: self.draw_pane_background(system_grid))
-        self.create_action_tile(system_grid, 0, 0, "OneDrive", "#5b6770", "Checking...", "Refresh", self.refresh, "onedrive", "cloud", "microsoft.com")
-        self.create_action_tile(system_grid, 0, 1, "Outlook", "#8d3f3f", "Close outlook.exe", "Click to kill", self.app.kill_outlook, "outlook", "mail", "outlook.live.com")
-        self.create_action_tile(system_grid, 0, 2, "Media cache", "#7b5f2a", "Checking...", "Click to delete", self.confirm_delete_cache, "cache", "trash", "microsoft.com")
-        self.create_action_tile(system_grid, 1, 0, "YT Downloader", "#d93025", "Download videos", "Open tool", self.app.show_youtube_downloader, "youtube", "play", "youtube.com")
-        self.create_action_tile(system_grid, 1, 1, "LukeStrom MeloVerse Explorer", "#6f42c1", "Open creations", "Open two explorers", self.open_universe_browser, "universe", "tree", "lukestrom.com")
-        self.layout_system_actions()
         self.cache_progress = ttk.Progressbar(main, mode="determinate", maximum=100)
         self.cache_progress_label = ttk.Label(main, textvariable=self.cache_progress_var, style="CardText.TLabel")
 
-        ttk.Label(main, text="Web shortcuts", style="CardTitle.TLabel").pack(anchor="w", pady=(22, 12))
+        ttk.Label(main, text="Web shortcuts", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 12))
 
         grid = tk.Canvas(main, height=420, bg=self.app.colors["panel_bg"], highlightthickness=0)
         self.web_grid = grid
@@ -3756,11 +4199,12 @@ class VuPage(ttk.Frame):
         meter_menu.add_checkbutton(label="Audio R", variable=self.audio_right_var, command=self.layout_meters)
         actions = ttk.Frame(header, style="Panel.TFrame")
         actions.pack(side="left", fill="x", expand=True, padx=(14, 0))
-        self.create_header_action(actions, "OneDrive", self.toggle_onedrive, "Start or stop OneDrive syncing")
-        self.create_header_action(actions, "Outlook", self.app.kill_outlook, "Close outlook.exe")
-        self.create_header_action(actions, "Cache", self.app.delete_cacheclip, "Delete the media cache folder")
-        self.create_header_action(actions, "YT", self.app.show_youtube_downloader, "Open YouTube downloader")
-        self.create_header_action(actions, "MeloVerse", self.open_meloverse_explorer, "Open the LukeStrom MeloVerse Explorer")
+        self.create_header_action(actions, "OneDrive", self.toggle_onedrive, self.onedrive_tooltip)
+        self.create_header_action(actions, "Outlook", self.app.kill_outlook, self.outlook_tooltip)
+        self.create_header_action(actions, "Cache", self.app.delete_cacheclip, self.cache_tooltip)
+        self.create_header_action(actions, "SD Import", self.open_sd_import, self.sd_import_tooltip)
+        self.create_header_action(actions, "YT", self.app.show_youtube_downloader, "Open YouTube downloader.\n\nUse full video mode or enter a start/end segment.")
+        self.create_header_action(actions, "MeloVerse", self.open_meloverse_explorer, "Open two regular Windows File Explorer windows for D:\\OneDrive\\Production\\creations.")
 
         performance = ttk.Frame(main, style="Panel.TFrame")
         self.performance_container = performance
@@ -3799,6 +4243,51 @@ class VuPage(ttk.Frame):
         SimpleTooltip(button, tooltip)
         return button
 
+    def onedrive_tooltip(self):
+        snapshot = one_drive_activity_snapshot()
+        status = snapshot.get("status", "unknown")
+        if status == "Stopped":
+            return "OneDrive\nStopped\n\nClick to start syncing."
+        download = format_bytes(snapshot.get("download_rate", 0))
+        upload = format_bytes(snapshot.get("upload_rate", 0))
+        lines = [
+            "OneDrive",
+            f"Status: {status}",
+            f"Download: {download}/s",
+            f"Upload: {upload}/s",
+        ]
+        download_file = snapshot.get("download_label") or snapshot.get("download_file") or ""
+        upload_file = snapshot.get("upload_label") or snapshot.get("upload_file") or ""
+        if download_file and download_file != "No active file detected":
+            lines.append(f"Downloading: {ellipsize_middle(download_file, 64)}")
+        if upload_file and upload_file != "No active file detected":
+            lines.append(f"Uploading: {ellipsize_middle(upload_file, 64)}")
+        lines.append("")
+        lines.append("Click to stop syncing.")
+        return "\n".join(lines)
+
+    def outlook_tooltip(self):
+        return "Outlook\nClose outlook.exe.\n\nUseful when Outlook keeps files locked or consumes background resources."
+
+    def cache_tooltip(self):
+        if CACHECLIP_DIR.exists():
+            file_count, total_size = folder_stats(CACHECLIP_DIR)
+            status = f"{file_count:,} files | {format_bytes(total_size)}"
+        else:
+            status = "Folder not found"
+        return f"Media cache\n{status}\n\nClick to delete the cache folder."
+
+    def sd_import_tooltip(self):
+        destination = sd_import_destination()
+        reason = "default J: destination" if destination == SD_IMPORT_DEST_DIR else "fallback because J: destination is not available"
+        return (
+            "SD Import\n"
+            "Listens for inserted SD/removable drives after Start listener.\n\n"
+            f"Destination: {destination}\n"
+            f"Reason: {reason}\n\n"
+            "After import it attempts eject and sends an email summary when emailmodule is available."
+        )
+
     def toggle_onedrive(self):
         if is_onedrive_running():
             self.app.stop_onedrive(on_change=self.refresh_performance)
@@ -3807,6 +4296,9 @@ class VuPage(ttk.Frame):
 
     def open_meloverse_explorer(self):
         open_dual_file_explorer(UNIVERSE_DIR)
+
+    def open_sd_import(self):
+        SDImportWindow(self.app)
 
     def destroy(self):
         self.performance_running = False
@@ -5281,6 +5773,12 @@ class ReelDesignPage(ttk.Frame):
         self.creative_boxes = []
         self.song_title_var = tk.StringVar()
         self.post_count_var = tk.IntVar(value=4)
+        self.post_group_var = tk.StringVar(value="B")
+        self.group_a_category_var = tk.StringVar(value=next(iter(GROUP_A_HOOKS)))
+        self.group_a_hook_var = tk.StringVar(value="")
+        self.group_a_controls = None
+        self.hook_combo = None
+        self.active_opening_box = None
         self._build()
 
     def _build(self):
@@ -5300,6 +5798,26 @@ class ReelDesignPage(ttk.Frame):
         ttk.Spinbox(post_row, from_=1, to=20, textvariable=self.post_count_var, width=6).pack(side="left")
         ttk.Button(post_row, text="Update boxes", command=self.rebuild_creative_boxes).pack(side="left", padx=(8, 0))
         top.columnconfigure(0, weight=1)
+
+        group_row = ttk.Frame(top, style="Panel.TFrame")
+        group_row.grid(row=4, column=0, sticky="w", pady=(12, 0))
+        ttk.Label(group_row, text="Post group", style="CardText.TLabel").pack(side="left", padx=(0, 8))
+        ttk.Radiobutton(group_row, text="Group B - Discovery / Music Reel", variable=self.post_group_var, value="B", command=self.on_post_group_changed).pack(side="left", padx=(0, 12))
+        ttk.Radiobutton(group_row, text="Group A - Pillar / Storytelling Reel", variable=self.post_group_var, value="A", command=self.on_post_group_changed).pack(side="left")
+
+        self.group_a_controls = ttk.Frame(top, style="Panel.TFrame")
+        self.group_a_controls.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+        self.group_a_controls.columnconfigure(1, weight=1)
+        ttk.Label(self.group_a_controls, text="Category", style="CardText.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 8))
+        category_combo = ttk.Combobox(self.group_a_controls, textvariable=self.group_a_category_var, values=list(GROUP_A_HOOKS.keys()), state="readonly", width=34)
+        category_combo.grid(row=0, column=1, sticky="ew", padx=(0, 14))
+        category_combo.bind("<<ComboboxSelected>>", self.on_group_a_category_changed)
+        ttk.Label(self.group_a_controls, text="Text hook", style="CardText.TLabel").grid(row=0, column=2, sticky="w", padx=(0, 8))
+        self.hook_combo = ttk.Combobox(self.group_a_controls, textvariable=self.group_a_hook_var, values=GROUP_A_HOOKS[self.group_a_category_var.get()], state="readonly", width=52)
+        self.hook_combo.grid(row=0, column=3, sticky="ew")
+        self.hook_combo.bind("<<ComboboxSelected>>", self.apply_group_a_hook)
+        self.group_a_controls.columnconfigure(3, weight=2)
+        self.on_post_group_changed()
 
         self.creative = ttk.Frame(main, style="Panel.TFrame", padding=16)
         self.creative.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 12))
@@ -5338,7 +5856,45 @@ class ReelDesignPage(ttk.Frame):
             self.app.style_text_widget(opening)
             first_seconds.grid(row=row, column=1, sticky="ew", padx=(0, 10), pady=(8, 0))
             opening.grid(row=row, column=2, sticky="ew", pady=(8, 0))
+            opening.bind("<FocusIn>", lambda _event=None, box=opening: self.set_active_opening_box(box))
             self.creative_boxes.append((first_seconds, opening))
+        if self.creative_boxes:
+            self.active_opening_box = self.creative_boxes[0][1]
+
+    def set_active_opening_box(self, box):
+        self.active_opening_box = box
+
+    def on_post_group_changed(self):
+        if self.group_a_controls is None:
+            return
+        if self.post_group_var.get() == "A":
+            self.group_a_controls.grid()
+            self.on_group_a_category_changed()
+        else:
+            self.group_a_controls.grid_remove()
+
+    def on_group_a_category_changed(self, _event=None):
+        category = self.group_a_category_var.get()
+        hooks = GROUP_A_HOOKS.get(category, [])
+        if self.hook_combo is not None:
+            self.hook_combo.configure(values=hooks)
+        if hooks:
+            self.group_a_hook_var.set(hooks[0])
+
+    def apply_group_a_hook(self, _event=None):
+        hook = self.group_a_hook_var.get().strip()
+        if not hook:
+            return
+        target = self.active_opening_box
+        if target is None or not target.winfo_exists():
+            target = self.creative_boxes[0][1] if self.creative_boxes else None
+        if target is None:
+            return
+        target.delete("1.0", tk.END)
+        target.insert("1.0", hook)
+        if isinstance(target, ExpandingText):
+            target._resize()
+        target.focus_set()
 
     def get_song_title(self):
         song_title = self.song_title_var.get().strip()
@@ -5656,7 +6212,7 @@ class MetricsPage(ttk.Frame):
         ]
 
         for row, (platform, views_key, followers_key) in enumerate(platform_fields, start=1):
-            ttk.Label(form, text=f"{platform} views", style="CardText.TLabel").grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+            ttk.Label(form, text=f"{platform} impressions", style="CardText.TLabel").grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
             views_var = tk.StringVar()
             ttk.Entry(form, textvariable=views_var, width=12).grid(row=row, column=1, sticky="ew", pady=4)
             self.entries[views_key] = views_var
