@@ -68,9 +68,12 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V5.0"
+APP_VERSION = "V5.1"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
+GITHUB_REPO = "BcNodesApps/lukestrom_creative_toolbox"
+GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"
+GITHUB_LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 APP_ICON_FILENAME = "260414 logo lukestrom round.png"
 TILE_BACKGROUND_DIR = Path(r"D:\OneDrive\Production\creations")
 TILE_BACKGROUND_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -341,6 +344,23 @@ def first_existing_path(*paths):
     return paths[0]
 
 
+def version_tuple(text):
+    numbers = re.findall(r"\d+", str(text or ""))
+    return tuple(int(number) for number in numbers[:4]) if numbers else (0,)
+
+
+def latest_github_release():
+    request = urllib.request.Request(
+        GITHUB_LATEST_RELEASE_API,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "LukeStrom-Creative-Toolbox",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=8) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
 def load_settings():
     try:
         if SETTINGS_FILE.exists():
@@ -595,6 +615,12 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 ## Current version
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
+
+## V5.1
+- A Check for update option was added under Info in the hamburger menu.
+- The update checker compares the local app version with the latest GitHub Release.
+- If a newer release exists, it can open the release or exe download page.
+- If the GitHub repo is private or unavailable, the app explains the issue and offers to open the releases page manually.
 
 ## V5.0
 - Reel Design now has a Post group selector with Group B as the default unchanged workflow.
@@ -930,7 +956,7 @@ Use Shortcuts for creator links and quick utilities. OneDrive, Outlook, Media Ca
 Use Metrics to keep weekly operational stats and monthly strategic stats. Weekly answers what happened this week: enter impressions and followers per platform, then save the week to Excel. The existing Weekly worksheet structure is kept for compatibility even though some internal names still say views. Monthly answers how the project is developing over time: fill the Monthly worksheet with Metricool report values and ChatGPT analysis. The dashboard shows weekly impressions, weekly followers, platform MVP, monthly KPI cards, monthly trend charts, Dashboard Summary, and Next Month Focus.
 
 ## Hamburger Menu
-Use the hamburger menu for settings and help. Artwork controls the picture folder, image interval, tile opacity, and VU opacity. Fonts controls custom fonts, basic font mode, font interval, and title size. Metrics controls the Excel file location and can export a starter template. Info sits at the bottom and contains Release notes and this How to.
+Use the hamburger menu for settings and help. Artwork controls the picture folder, image interval, tile opacity, and VU opacity. Fonts controls custom fonts, basic font mode, font interval, and title size. Metrics controls the Excel file location and can export a starter template. Info sits at the bottom and contains Check for update, Release notes, and this How to.
 
 ## Suggested Workflow
 Start with Song Analyzer or Reel Design while creating content. Use Campaign Planner when a song or reel batch is ready to publish. Open YouTube Downloader from Shortcuts when you need source clips. Use Tools when you want visual meters reacting to your system and music. Keep Shortcuts open for web links and file utilities. Update Metrics once a week after your Sunday 20:00 stats check.
@@ -1947,6 +1973,7 @@ class CreativeToolbox(tk.Tk):
         menu.add_command(label="Export Excel template", command=self.export_metrics_template)
         menu.add_separator()
         menu.add_command(label="Info", state="disabled")
+        menu.add_command(label="Check for update", command=self.check_for_update)
         menu.add_command(label="Release notes", command=self.show_release_notes)
         menu.add_command(label="How to", command=self.show_how_to)
         x = self.menu_button.winfo_rootx()
@@ -2504,6 +2531,53 @@ class CreativeToolbox(tk.Tk):
             except Exception as exc:
                 messagebox.showwarning("Chrome could not open", f"Opening in default browser instead.\n\n{exc}")
         webbrowser.open(url)
+
+    def check_for_update(self):
+        window = tk.Toplevel(self)
+        window.title("Check for update")
+        window.geometry("420x150")
+        window.resizable(False, False)
+        window.transient(self)
+        window.configure(bg=self.colors["panel_bg"])
+        shell = ttk.Frame(window, style="Panel.TFrame", padding=18)
+        shell.pack(fill="both", expand=True)
+        status_var = tk.StringVar(value="Checking GitHub Releases...")
+        ttk.Label(shell, text="Update check", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+        ttk.Label(shell, textvariable=status_var, style="CardText.TLabel", wraplength=360).pack(anchor="w")
+
+        def finish(message, release_url=None, is_update=False):
+            status_var.set(message)
+            buttons = ttk.Frame(shell, style="Panel.TFrame")
+            buttons.pack(fill="x", pady=(14, 0))
+            if release_url:
+                text = "Open download page" if is_update else "Open releases"
+                ttk.Button(buttons, text=text, command=lambda: self.open_in_chrome(release_url)).pack(side="left")
+            ttk.Button(buttons, text="Close", command=window.destroy).pack(side="right")
+
+        def worker():
+            try:
+                release = latest_github_release()
+                latest_tag = release.get("tag_name") or release.get("name") or ""
+                release_url = release.get("html_url") or GITHUB_RELEASES_URL
+                assets = release.get("assets") or []
+                exe_asset = next((asset for asset in assets if str(asset.get("name", "")).lower().endswith(".exe")), None)
+                if exe_asset and exe_asset.get("browser_download_url"):
+                    release_url = exe_asset["browser_download_url"]
+                if version_tuple(latest_tag) > version_tuple(APP_VERSION):
+                    message = f"New version available: {latest_tag}\nCurrent version: {APP_VERSION}"
+                    self.after(0, lambda: finish(message, release_url, True))
+                else:
+                    message = f"You are up to date.\nCurrent version: {APP_VERSION}\nLatest release: {latest_tag or 'unknown'}"
+                    self.after(0, lambda: finish(message, GITHUB_RELEASES_URL, False))
+            except Exception as exc:
+                message = (
+                    "Could not check GitHub Releases automatically.\n\n"
+                    "If the repo is private, this can happen because the app has no GitHub login token.\n"
+                    f"Details: {exc}"
+                )
+                self.after(0, lambda: finish(message, GITHUB_RELEASES_URL, False))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def kill_outlook(self):
         subprocess.run(["taskkill", "/IM", "outlook.exe", "/F"], capture_output=True, text=True)
