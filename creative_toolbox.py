@@ -16,8 +16,10 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+import tempfile
 import time as time_module
 import uuid
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -70,7 +72,7 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V5.3"
+APP_VERSION = "V5.8"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
 GITHUB_REPO = "BcNodesApps/lukestrom_creative_toolbox"
@@ -95,6 +97,7 @@ SD_IMPORT_DEST_DIR = Path(r"J:\Production\uploads\images")
 EXTERNAL_APP_ICON_PATH = Path(r"D:\OneDrive\Production\uploads") / APP_ICON_FILENAME
 SETTINGS_DIR = Path(os.getenv("APPDATA", str(Path.home()))) / "Creative Toolbox"
 SETTINGS_FILE = SETTINGS_DIR / "settings.json"
+PROFILE_SETTINGS_DIR = SETTINGS_DIR / "profiles"
 ICON_CACHE_DIR = SETTINGS_DIR / "icons"
 DEFAULT_METRICS_WORKBOOK_PATH = Path(r"D:\OneDrive\Production\creations\misc\app\metrics.xlsx")
 DEFAULT_MONTHLY_RECOMMENDATIONS_PATH = Path(r"D:\OneDrive\Production\creations\misc\app\monthly reports\monthly recommendations.txt")
@@ -102,6 +105,58 @@ TILE_BACKGROUND_CACHE = {"dir": None, "paths": []}
 PERFORMANCE_IO_STATE = {"time": None, "disk": None, "net": None, "gpu_time": 0, "gpu": None}
 CPU_TIME_STATE = {"idle": None, "kernel": None, "user": None}
 ONEDRIVE_ACTIVITY_STATE = {"time": None, "read": None, "write": None}
+CURRENT_PROFILE = {"email": "", "settings_file": SETTINGS_FILE}
+USER_ROLES = ("free", "paid", "admin")
+ROLE_FEATURES = {
+    "free": {
+        "song",
+        "reel",
+        "campaign",
+        "shortcuts",
+        "metrics",
+        "updates",
+    },
+    "paid": {
+        "song",
+        "reel",
+        "campaign",
+        "shortcuts",
+        "metrics",
+        "tools",
+        "sd_import",
+        "youtube_downloader",
+        "email",
+        "updates",
+    },
+    "admin": {
+        "song",
+        "reel",
+        "campaign",
+        "shortcuts",
+        "metrics",
+        "tools",
+        "sd_import",
+        "youtube_downloader",
+        "email",
+        "updates",
+        "admin_dashboard",
+        "feature_admin",
+    },
+}
+FEATURE_LABELS = {
+    "song": "Song Analyzer",
+    "reel": "Reel Design",
+    "campaign": "Campaign Planner",
+    "shortcuts": "Shortcuts",
+    "metrics": "Metrics",
+    "tools": "Tools / VU meters",
+    "sd_import": "SD Import",
+    "youtube_downloader": "YouTube Downloader",
+    "email": "Email",
+    "updates": "Updates",
+    "admin_dashboard": "Admin Dashboard",
+    "feature_admin": "Feature administration",
+}
 LIGHT_THEME = {
     "app_bg": "#f5f3ee",
     "panel_bg": "#ffffff",
@@ -364,7 +419,7 @@ def latest_github_release():
         return json.loads(response.read().decode("utf-8"))
 
 
-def load_settings():
+def root_settings():
     try:
         if SETTINGS_FILE.exists():
             return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
@@ -373,12 +428,218 @@ def load_settings():
     return {}
 
 
-def save_settings(settings):
+def save_root_settings(settings):
     try:
         SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
         SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     except Exception:
         pass
+
+
+def supabase_config():
+    settings = root_settings()
+    cloud = settings.get("supabase", {})
+    return {
+        "url": str(cloud.get("url") or "").strip().rstrip("/"),
+        "publishable_key": str(cloud.get("publishable_key") or "").strip(),
+        "session": cloud.get("session") or {},
+    }
+
+
+def save_supabase_config(url=None, publishable_key=None, session=None):
+    settings = root_settings()
+    cloud = settings.setdefault("supabase", {})
+    if url is not None:
+        cloud["url"] = str(url or "").strip().rstrip("/")
+    if publishable_key is not None:
+        cloud["publishable_key"] = str(publishable_key or "").strip()
+    if session is not None:
+        cloud["session"] = session or {}
+    save_root_settings(settings)
+
+
+def supabase_is_configured():
+    config = supabase_config()
+    return bool(config["url"] and config["publishable_key"])
+
+
+def supabase_request(path, method="GET", body=None, access_token=None, timeout=12):
+    config = supabase_config()
+    if not config["url"] or not config["publishable_key"]:
+        raise RuntimeError("Supabase is not configured yet.")
+    url = f"{config['url']}{path}"
+    data = None
+    headers = {
+        "apikey": config["publishable_key"],
+        "Authorization": f"Bearer {access_token or config['publishable_key']}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if method.upper() in {"POST", "PATCH", "PUT"}:
+        headers["Prefer"] = "return=representation,resolution=merge-duplicates"
+    if body is not None:
+        data = json.dumps(body).encode("utf-8")
+    request = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw else None
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(detail or str(exc)) from exc
+
+
+def supabase_sign_in(email, password):
+    result = supabase_request(
+        "/auth/v1/token?grant_type=password",
+        method="POST",
+        body={"email": email, "password": password},
+    )
+    user = result.get("user") or {}
+    session = {
+        "access_token": result.get("access_token", ""),
+        "refresh_token": result.get("refresh_token", ""),
+        "expires_at": int(time_module.time()) + int(result.get("expires_in") or 0),
+        "user": {"id": user.get("id", ""), "email": user.get("email", email)},
+    }
+    save_supabase_config(session=session)
+    return session
+
+
+def supabase_current_session():
+    session = supabase_config().get("session") or {}
+    if session.get("access_token") and session.get("user", {}).get("id"):
+        return session
+    return {}
+
+
+def supabase_fetch_profile(session=None):
+    session = session or supabase_current_session()
+    token = session.get("access_token")
+    if not token:
+        return {}
+    result = supabase_request(
+        "/rest/v1/profiles?select=id,email,display_name,status&limit=1",
+        access_token=token,
+    )
+    if isinstance(result, list) and result:
+        return result[0]
+    return {}
+
+
+def supabase_fetch_settings(session=None):
+    session = session or supabase_current_session()
+    token = session.get("access_token")
+    if not token:
+        return {}
+    result = supabase_request(
+        "/rest/v1/user_settings?select=settings&limit=1",
+        access_token=token,
+    )
+    if isinstance(result, list) and result:
+        return result[0].get("settings") or {}
+    return {}
+
+
+def supabase_sync_settings_async(settings):
+    session = supabase_current_session()
+    user_id = session.get("user", {}).get("id")
+    token = session.get("access_token")
+    if not user_id or not token:
+        return
+
+    def worker():
+        try:
+            cloud_settings = dict(settings or {})
+            cloud_settings.pop("supabase_password", None)
+            supabase_request(
+                "/rest/v1/user_settings?on_conflict=user_id",
+                method="POST",
+                body={"user_id": user_id, "settings": cloud_settings},
+                access_token=token,
+                timeout=8,
+            )
+        except Exception:
+            pass
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def profile_key(email):
+    key = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(email or "").strip().lower())
+    return key.strip("._-") or "default"
+
+
+def profile_settings_file(email):
+    return PROFILE_SETTINGS_DIR / f"{profile_key(email)}.json"
+
+
+def set_current_profile(email):
+    email = str(email or "").strip().lower()
+    CURRENT_PROFILE["email"] = email
+    CURRENT_PROFILE["settings_file"] = profile_settings_file(email) if email else SETTINGS_FILE
+    settings = root_settings()
+    if email:
+        settings["active_profile"] = email
+        profiles = settings.setdefault("profiles", [])
+        if email not in profiles:
+            profiles.append(email)
+    save_root_settings(settings)
+
+
+def active_profile_email():
+    return CURRENT_PROFILE.get("email", "")
+
+
+def current_user_role():
+    settings = load_settings()
+    role = str(settings.get("user_role") or "free").lower()
+    return role if role in USER_ROLES else "free"
+
+
+def set_current_user_role(role):
+    role = str(role or "free").lower()
+    if role not in USER_ROLES:
+        role = "free"
+    settings = load_settings()
+    settings["user_role"] = role
+    save_settings(settings)
+
+
+def current_feature_set():
+    role = current_user_role()
+    features = set(ROLE_FEATURES.get(role, ROLE_FEATURES["free"]))
+    overrides = load_settings().get("feature_overrides", {})
+    for feature, enabled in overrides.items():
+        if enabled:
+            features.add(feature)
+        else:
+            features.discard(feature)
+    return features
+
+
+def has_feature(feature):
+    return feature in current_feature_set()
+
+
+def load_settings():
+    path = CURRENT_PROFILE.get("settings_file") or SETTINGS_FILE
+    try:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def save_settings(settings):
+    path = CURRENT_PROFILE.get("settings_file") or SETTINGS_FILE
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+    supabase_sync_settings_async(settings)
 
 
 def get_tile_background_dir():
@@ -618,6 +879,40 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 ## Current version
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
+
+## V5.8
+- Offline/local login mode was removed to keep the app cloud-first and easier to reason about.
+- Supabase login is now required at startup.
+- Closing the login window exits the app instead of continuing in local mode.
+- The login screen now focuses only on Supabase email/password plus cloud setup.
+- Local files still stay local, but user status and settings now belong to the Supabase login flow.
+
+## V5.7
+- Supabase cloud login support was added as the next step toward a hybrid local/cloud app.
+- The app can now store a Supabase Project URL and publishable key locally.
+- Users can log in with Supabase email/password.
+- After cloud login, the app reads the user's Supabase profile status and uses it for Free / Paid / Admin feature access.
+- Per-user settings can now sync to the Supabase user_settings table while artwork, videos and PDFs remain in local folders.
+- The app keeps sensitive backend keys out of the desktop code; only the public publishable key belongs in the app.
+
+## V5.6
+- A Free / Paid / Admin role structure was added as preparation for Supabase login and billing.
+- Central feature flags now define which functions are available per role.
+- Admin users get an Admin dashboard page and Home tile.
+- The Admin dashboard shows the active profile, role, local settings file and enabled features.
+- The structure is ready for future Supabase Auth, subscription status and cloud feature permissions.
+
+## V5.5
+- A startup profile login was added, using an email/Gmail address as the Creative Toolbox profile.
+- App settings are now stored per profile, including artwork, metrics, theme and SD Import email settings.
+- The hamburger menu now includes profile login/switching.
+- SD Import email settings now prefill Gmail SMTP defaults when the active profile is a Gmail address.
+
+## V5.4
+- Hamburger update now installs the update from inside the EXE instead of opening a browser download.
+- Startup update checks use the same install-update flow when a newer release is found.
+- SD Import Open destination now opens the real destination folder instead of the visible label text.
+- The remaining VU meter outline was removed for a cleaner meter face.
 
 ## V5.3
 - SD Import now has a Format card button for the selected removable drive.
@@ -1869,6 +2164,100 @@ class ScrollFrame(ttk.Frame):
             pass
 
 
+class ProfileLoginWindow(tk.Toplevel):
+    def __init__(self, app):
+        super().__init__(app)
+        self.app = app
+        self.title(f"{APP_TITLE} - Login")
+        self.geometry("520x280")
+        self.resizable(False, False)
+        self.transient(app)
+        self.grab_set()
+        self.configure(bg=app.colors["panel_bg"])
+        settings = root_settings()
+        self.email_var = tk.StringVar(value=settings.get("active_profile", ""))
+        self.password_var = tk.StringVar(value="")
+        self.status_var = tk.StringVar(value="")
+        self._build()
+        self.protocol("WM_DELETE_WINDOW", self.close_login)
+
+    def _build(self):
+        shell = ttk.Frame(self, style="Panel.TFrame", padding=22)
+        shell.pack(fill="both", expand=True)
+        ttk.Label(shell, text="Login", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+        ttk.Label(
+            shell,
+            text="Log in with Supabase. Your app status and settings are linked to this account.",
+            style="CardText.TLabel",
+            wraplength=400,
+        ).pack(anchor="w", pady=(0, 14))
+        cloud_state = "configured" if supabase_is_configured() else "not configured"
+        ttk.Label(shell, text=f"Supabase: {cloud_state}", style="CardText.TLabel").pack(anchor="w", pady=(0, 8))
+        ttk.Label(shell, text="Email address", style="CardText.TLabel").pack(anchor="w")
+        entry = ttk.Entry(shell, textvariable=self.email_var, width=44)
+        entry.pack(fill="x", pady=(4, 8))
+        entry.focus_set()
+        entry.bind("<FocusOut>", lambda _event=None: self.load_profile_role_preview())
+        ttk.Label(shell, text="Password", style="CardText.TLabel").pack(anchor="w")
+        password_entry = ttk.Entry(shell, textvariable=self.password_var, width=44, show="*")
+        password_entry.pack(fill="x", pady=(4, 12))
+        ttk.Label(shell, textvariable=self.status_var, style="CardText.TLabel", wraplength=440).pack(anchor="w", pady=(0, 12))
+        buttons = ttk.Frame(shell, style="Panel.TFrame")
+        buttons.pack(fill="x")
+        ttk.Button(buttons, text="Login", command=self.cloud_login, style="Accent.TButton").pack(side="left")
+        ttk.Button(buttons, text="Cloud setup", command=self.open_cloud_setup).pack(side="left", padx=(8, 0))
+
+    def open_cloud_setup(self):
+        try:
+            self.grab_release()
+        except Exception:
+            pass
+        self.app.show_supabase_settings(parent=self, on_close=lambda: self.grab_set())
+
+    def load_profile_role_preview(self):
+        return
+
+    def close_login(self):
+        if supabase_current_session():
+            self.destroy()
+        else:
+            self.app.destroy()
+
+    def cloud_login(self):
+        email = self.email_var.get().strip().lower()
+        password = self.password_var.get()
+        if not supabase_is_configured():
+            messagebox.showwarning("Supabase login", "Set the Supabase URL and publishable key first.")
+            return
+        if not email or "@" not in email or not password:
+            messagebox.showwarning("Supabase login", "Enter your email address and password.")
+            return
+        self.status_var.set("Logging in...")
+        self.update_idletasks()
+        try:
+            session = supabase_sign_in(email, password)
+            profile = supabase_fetch_profile(session)
+            cloud_settings = supabase_fetch_settings(session)
+            self.app.apply_profile(email)
+            local_settings = load_settings()
+            merged = dict(local_settings)
+            if isinstance(cloud_settings, dict):
+                merged.update(cloud_settings)
+            role = str(profile.get("status") or merged.get("user_role") or "free").lower()
+            if role not in USER_ROLES:
+                role = "free"
+            merged["user_role"] = role
+            merged["cloud_login"] = True
+            merged["cloud_user_id"] = session.get("user", {}).get("id", "")
+            save_settings(merged)
+            self.app.refresh_navigation()
+            self.app.refresh_current_page()
+            self.destroy()
+        except Exception as exc:
+            self.status_var.set("Cloud login failed.")
+            messagebox.showerror("Supabase login failed", str(exc)[:900])
+
+
 class CreativeToolbox(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -1886,8 +2275,76 @@ class CreativeToolbox(tk.Tk):
         self._setup_style()
         self._set_app_icon()
         self._build_shell()
+        self.after(150, self.show_login)
         self.show_home()
         self.after(2500, self.auto_check_for_update)
+
+    def show_login(self):
+        ProfileLoginWindow(self)
+
+    def show_supabase_settings(self, parent=None, on_close=None):
+        config = supabase_config()
+        owner = parent or self
+        window = tk.Toplevel(owner)
+        window.title(f"{APP_TITLE} - Supabase setup")
+        window.geometry("620x300")
+        window.resizable(False, False)
+        window.configure(bg=self.colors["panel_bg"])
+        window.transient(owner)
+        shell = ttk.Frame(window, style="Panel.TFrame", padding=22)
+        shell.pack(fill="both", expand=True)
+        ttk.Label(shell, text="Supabase setup", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+        ttk.Label(
+            shell,
+            text="Paste your Project URL and publishable key. Do not paste the database password or service role key here.",
+            style="CardText.TLabel",
+            wraplength=550,
+        ).pack(anchor="w", pady=(0, 14))
+        url_var = tk.StringVar(value=config.get("url", ""))
+        key_var = tk.StringVar(value=config.get("publishable_key", ""))
+        status_var = tk.StringVar(value="")
+        ttk.Label(shell, text="Project URL", style="CardText.TLabel").pack(anchor="w")
+        ttk.Entry(shell, textvariable=url_var, width=70).pack(fill="x", pady=(4, 10))
+        ttk.Label(shell, text="Publishable key", style="CardText.TLabel").pack(anchor="w")
+        ttk.Entry(shell, textvariable=key_var, width=70, show="*").pack(fill="x", pady=(4, 12))
+        ttk.Label(shell, textvariable=status_var, style="CardText.TLabel", wraplength=550).pack(anchor="w", pady=(0, 10))
+
+        def save():
+            url = url_var.get().strip()
+            key = key_var.get().strip()
+            if not url.startswith("https://") or ".supabase.co" not in url:
+                messagebox.showwarning("Supabase setup", "Paste the Supabase Project URL.")
+                return
+            if not key:
+                messagebox.showwarning("Supabase setup", "Paste the Supabase publishable key.")
+                return
+            save_supabase_config(url=url, publishable_key=key)
+            status_var.set("Saved. You can now log in with Supabase.")
+            messagebox.showinfo("Supabase setup", "Supabase settings saved.")
+            close()
+
+        def close():
+            window.destroy()
+            if on_close:
+                try:
+                    on_close()
+                except Exception:
+                    pass
+
+        window.protocol("WM_DELETE_WINDOW", close)
+
+        buttons = ttk.Frame(shell, style="Panel.TFrame")
+        buttons.pack(fill="x", pady=(4, 0))
+        ttk.Button(buttons, text="Save", command=save, style="Accent.TButton").pack(side="left")
+        ttk.Button(buttons, text="Cancel", command=close).pack(side="right")
+
+    def apply_profile(self, email):
+        set_current_profile(email)
+        self.dark_mode = get_dark_mode()
+        self.colors = theme_colors(self.dark_mode)
+        self.configure(bg=self.colors["app_bg"])
+        self._setup_style()
+        self.refresh_current_page()
 
     def _set_app_icon(self):
         if Image is None or ImageTk is None or not APP_ICON_PATH.exists():
@@ -1959,18 +2416,9 @@ class CreativeToolbox(tk.Tk):
         self.home_button = self.create_nav_text(self.topbar, "Home", self.show_home)
         self.home_button.grid(row=0, column=0, sticky="w", padx=(0, 6))
 
-        tool_nav = ttk.Frame(self.topbar)
-        tool_nav.grid(row=0, column=1, sticky="w")
-        tool_buttons = [
-            ("Song", self.show_song_analyzer),
-            ("Reel", self.show_reel_design),
-            ("Campaign", self.show_post_planner),
-            ("Tools", self.show_audio_vu),
-            ("Shortcuts", self.show_tools),
-            ("Metrics", self.show_metrics),
-        ]
-        for text, command in tool_buttons:
-            self.create_nav_text(tool_nav, text, command).pack(side="left", padx=(0, 10))
+        self.tool_nav = ttk.Frame(self.topbar)
+        self.tool_nav.grid(row=0, column=1, sticky="w")
+        self.refresh_navigation()
 
         right_nav = ttk.Frame(self.topbar)
         right_nav.grid(row=0, column=2, sticky="e")
@@ -1979,6 +2427,24 @@ class CreativeToolbox(tk.Tk):
 
         self.content = ttk.Frame(self, padding=(22, 8, 22, 22))
         self.content.pack(fill="both", expand=True)
+
+    def refresh_navigation(self):
+        if not hasattr(self, "tool_nav"):
+            return
+        for widget in self.tool_nav.winfo_children():
+            widget.destroy()
+        tool_buttons = [
+            ("Song", self.show_song_analyzer),
+            ("Reel", self.show_reel_design),
+            ("Campaign", self.show_post_planner),
+            ("Tools", self.show_audio_vu),
+            ("Shortcuts", self.show_tools),
+            ("Metrics", self.show_metrics),
+        ]
+        if has_feature("admin_dashboard"):
+            tool_buttons.append(("Admin", self.show_admin_dashboard))
+        for text, command in tool_buttons:
+            self.create_nav_text(self.tool_nav, text, command).pack(side="left", padx=(0, 10))
 
     def create_nav_text(self, parent, text, command):
         label = ttk.Label(parent, text=text, style="NavText.TLabel", cursor="hand2")
@@ -1994,6 +2460,9 @@ class CreativeToolbox(tk.Tk):
         fullscreen_var = tk.BooleanVar(value=self.state() == "zoomed")
         menu.add_checkbutton(label="Fullscreen", variable=fullscreen_var, command=self.toggle_fullscreen)
         menu.add_command(label="Refresh", command=self.refresh_active_page)
+        profile_label = f"Profile: {active_profile_email()}" if active_profile_email() else "Profile login"
+        menu.add_command(label=profile_label, command=self.show_login)
+        menu.add_command(label="Supabase setup", command=self.show_supabase_settings)
         menu.add_separator()
         menu.add_command(label="Artwork", state="disabled")
         menu.add_checkbutton(label="No picture", variable=tk.BooleanVar(value=load_settings().get("tile_background_disabled", False)), command=self.toggle_tile_pictures)
@@ -2605,15 +3074,19 @@ class CreativeToolbox(tk.Tk):
         if not silent:
             ensure_window()
 
-        def finish(message, release_url=None, is_update=False):
+        def finish(message, release_url=None, is_update=False, asset_url=None, latest_tag=""):
             if silent and not is_update:
                 return
             ensure_window()
             status_var.set(message)
             buttons = ttk.Frame(shell, style="Panel.TFrame")
             buttons.pack(fill="x", pady=(14, 0))
-            if release_url:
-                text = "Open download page" if is_update else "Open releases"
+            if is_update and asset_url and getattr(sys, "frozen", False):
+                ttk.Button(buttons, text="Install update", command=lambda: self.install_update(asset_url, latest_tag, status_var, window)).pack(side="left")
+                if release_url:
+                    ttk.Button(buttons, text="Open releases", command=lambda: self.open_in_chrome(release_url)).pack(side="left", padx=(8, 0))
+            elif release_url:
+                text = "Open releases" if is_update else "Open releases"
                 ttk.Button(buttons, text=text, command=lambda: self.open_in_chrome(release_url)).pack(side="left")
             ttk.Button(buttons, text="Close", command=window.destroy).pack(side="right")
 
@@ -2622,15 +3095,16 @@ class CreativeToolbox(tk.Tk):
                 release = latest_github_release()
                 latest_tag = release.get("tag_name") or release.get("name") or ""
                 release_url = release.get("html_url") or GITHUB_RELEASES_URL
+                asset_url = None
                 assets = release.get("assets") or []
                 exe_asset = next((asset for asset in assets if str(asset.get("name", "")).lower().endswith(".exe")), None)
                 if exe_asset and exe_asset.get("browser_download_url"):
-                    release_url = exe_asset["browser_download_url"]
+                    asset_url = exe_asset["browser_download_url"]
                 latest_version = version_tuple(latest_tag)
                 current_version = version_tuple(APP_VERSION)
                 if latest_version > current_version:
                     message = f"New version available: {latest_tag}\nCurrent version: {APP_VERSION}"
-                    self.after(0, lambda: finish(message, release_url, True))
+                    self.after(0, lambda: finish(message, release_url, True, asset_url, latest_tag))
                 elif latest_version < current_version:
                     message = f"Development version is newer than GitHub.\nCurrent version: {APP_VERSION}\nLatest release: {latest_tag or 'unknown'}"
                     self.after(0, lambda: finish(message, GITHUB_RELEASES_URL, False))
@@ -2646,6 +3120,62 @@ class CreativeToolbox(tk.Tk):
                     f"Details: {exc}"
                 )
                 self.after(0, lambda: finish(message, GITHUB_RELEASES_URL, False))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def install_update(self, asset_url, latest_tag, status_var, window):
+        if not getattr(sys, "frozen", False):
+            messagebox.showinfo("Update", "Automatic install is only available in the EXE version.")
+            self.open_in_chrome(GITHUB_RELEASES_URL)
+            return
+        confirmed = messagebox.askyesno(
+            "Install update",
+            f"Install {latest_tag or 'the latest version'} now?\n\n"
+            "The app will close, replace the EXE, and restart.",
+        )
+        if not confirmed:
+            return
+        status_var.set("Downloading update...")
+
+        def worker():
+            try:
+                current_exe = Path(sys.executable)
+                download_path = Path(tempfile.gettempdir()) / f"LukeStrom_Creative_Tool_{latest_tag or 'update'}.exe"
+                request = urllib.request.Request(asset_url, headers={"User-Agent": "LukeStrom-Creative-Toolbox"})
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    with open(download_path, "wb") as handle:
+                        shutil.copyfileobj(response, handle)
+                if download_path.stat().st_size < 1024 * 1024:
+                    raise RuntimeError("Downloaded update is unexpectedly small.")
+                script_path = Path(tempfile.gettempdir()) / "lukestrom_apply_update.bat"
+                script_path.write_text(
+                    "\n".join([
+                        "@echo off",
+                        "setlocal",
+                        f'set "SOURCE={download_path}"',
+                        f'set "TARGET={current_exe}"',
+                        "timeout /t 2 /nobreak >nul",
+                        "for /l %%i in (1,1,30) do (",
+                        '  copy /Y "%SOURCE%" "%TARGET%" >nul 2>&1',
+                        "  if not errorlevel 1 goto done",
+                        "  timeout /t 1 /nobreak >nul",
+                        ")",
+                        "exit /b 1",
+                        ":done",
+                        'start "" "%TARGET%"',
+                        'del "%SOURCE%" >nul 2>&1',
+                        'del "%~f0" >nul 2>&1',
+                    ]),
+                    encoding="utf-8",
+                )
+                self.after(0, lambda: status_var.set("Update downloaded. Restarting..."))
+                subprocess.Popen(["cmd", "/c", str(script_path)], shell=False)
+                self.after(500, self.destroy)
+            except Exception as exc:
+                self.after(0, lambda: (
+                    status_var.set("Update failed."),
+                    messagebox.showerror("Update failed", str(exc)),
+                ))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -2749,45 +3279,67 @@ class CreativeToolbox(tk.Tk):
         self.current_page.pack(fill="both", expand=True)
 
     def show_post_planner(self):
+        if not self.require_feature("campaign"):
+            return
         self.clear_content()
         self.set_page_title("Campaign Planner")
         self.current_page = CampaignPlannerPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_reel_design(self):
+        if not self.require_feature("reel"):
+            return
         self.clear_content()
         self.set_page_title("Reel Design")
         self.current_page = ReelDesignPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_youtube_downloader(self):
+        if not self.require_feature("youtube_downloader"):
+            return
         self.clear_content()
         self.set_page_title("YouTube Downloader")
         self.current_page = YouTubeDownloaderPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_audio_vu(self):
+        if not self.require_feature("tools"):
+            return
         self.clear_content()
         self.set_page_title("Tools")
         self.current_page = VuPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_song_analyzer(self):
+        if not self.require_feature("song"):
+            return
         self.clear_content()
         self.set_page_title("Song Analyzer")
         self.current_page = SongAnalyzerPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_metrics(self):
+        if not self.require_feature("metrics"):
+            return
         self.clear_content()
         self.set_page_title("Metrics")
         self.current_page = MetricsPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_tools(self):
+        if not self.require_feature("shortcuts"):
+            return
         self.clear_content()
         self.set_page_title("Shortcuts")
         self.current_page = ToolsPage(self.content, self)
+        self.current_page.pack(fill="both", expand=True)
+
+    def show_admin_dashboard(self):
+        if not self.require_feature("admin_dashboard"):
+            return
+        self.clear_content()
+        self.set_page_title("Admin")
+        self.current_page = AdminDashboardPage(self.content, self)
         self.current_page.pack(fill="both", expand=True)
 
     def show_tools_vu_window(self):
@@ -2889,6 +3441,18 @@ class CreativeToolbox(tk.Tk):
                 loading.destroy()
 
         self.after(60, run_action)
+
+    def require_feature(self, feature):
+        if has_feature(feature):
+            return True
+        role = current_user_role()
+        label = FEATURE_LABELS.get(feature, feature)
+        messagebox.showinfo(
+            "Feature unavailable",
+            f"{label} is not available for status: {role}.\n\n"
+            "This is already prepared for future Free/Paid/Admin cloud permissions.",
+        )
+        return False
 
 
 def folder_stats(path):
@@ -3398,13 +3962,17 @@ def save_windows_credential_password(username, password, target=EMAIL_CREDENTIAL
 
 def sd_email_settings():
     settings = load_settings().get("sd_import_email", {})
+    profile_email = active_profile_email()
+    from_address = settings.get("from") or profile_email
+    username = settings.get("username") or from_address
+    server = settings.get("server") or ("smtp.gmail.com" if profile_email.endswith("@gmail.com") else "")
     return {
         "enabled": bool(settings.get("enabled", False)),
-        "to": settings.get("to", ""),
-        "from": settings.get("from", ""),
-        "server": settings.get("server", ""),
+        "to": settings.get("to", from_address),
+        "from": from_address,
+        "server": server,
         "port": int(settings.get("port", 587) or 587),
-        "username": settings.get("username", ""),
+        "username": username,
         "use_tls": bool(settings.get("use_tls", True)),
     }
 
@@ -3571,7 +4139,7 @@ class SDImportWindow(tk.Toplevel):
         ttk.Button(controls, text="Format card", command=self.format_selected_drive).pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Email settings", command=self.open_email_settings).pack(side="left", padx=(8, 0))
         ttk.Checkbutton(controls, text="Move files", variable=self.move_files_var).pack(side="left", padx=(14, 0))
-        ttk.Button(controls, text="Open destination", command=lambda: os.startfile(str(Path(self.dest_var.get())))).pack(side="right")
+        ttk.Button(controls, text="Open destination", command=self.open_destination).pack(side="right")
 
         self.progress = ttk.Progressbar(shell, mode="determinate", maximum=100)
         self.progress.pack(fill="x", pady=(0, 8))
@@ -3631,6 +4199,17 @@ class SDImportWindow(tk.Toplevel):
         if destination == SD_IMPORT_DEST_DIR:
             return f"Destination: {destination}"
         return f"Destination: {destination} (fallback: J:\\Production\\uploads\\images is not available)"
+
+    def open_destination(self):
+        destination = sd_import_destination()
+        try:
+            destination.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+        try:
+            os.startfile(str(destination))
+        except Exception as exc:
+            messagebox.showerror("Could not open destination", str(exc))
 
     def start_import(self):
         destination = sd_import_destination()
@@ -3820,7 +4399,9 @@ class EmailSettingsWindow(tk.Toplevel):
         shell = ttk.Frame(self, style="Panel.TFrame", padding=18)
         shell.pack(fill="both", expand=True)
         ttk.Label(shell, text="SD Import email settings", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 14))
-        ttk.Checkbutton(shell, text="Send email after SD import", variable=self.enabled_var).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 12))
+        profile = active_profile_email() or "no profile"
+        ttk.Label(shell, text=f"Profile: {profile}", style="CardText.TLabel").grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        ttk.Checkbutton(shell, text="Send email after SD import", variable=self.enabled_var).grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 12))
 
         rows = [
             ("Recipient", self.to_var),
@@ -3829,7 +4410,7 @@ class EmailSettingsWindow(tk.Toplevel):
             ("SMTP port", self.port_var),
             ("Username", self.username_var),
         ]
-        for index, (label, var) in enumerate(rows, start=2):
+        for index, (label, var) in enumerate(rows, start=3):
             ttk.Label(shell, text=label, style="CardText.TLabel").grid(row=index, column=0, sticky="w", padx=(0, 10), pady=5)
             ttk.Entry(shell, textvariable=var, width=46).grid(row=index, column=1, sticky="ew", pady=5)
 
@@ -4499,6 +5080,70 @@ class ToolsPage(ttk.Frame):
             self.cache_status_var.set("Folder not found")
         self.update_action_tile("cache", status=self.cache_status_var.get(), action_text="Click to delete")
         self.update_action_tile("outlook", status="Close outlook.exe", action_text="Click to kill")
+
+
+class AdminDashboardPage(ttk.Frame):
+    def __init__(self, parent, app):
+        super().__init__(parent)
+        self.app = app
+        self._build()
+
+    def _build(self):
+        outer = ScrollFrame(self)
+        outer.pack(fill="both", expand=True)
+        main = ttk.Frame(outer.body, style="Panel.TFrame", padding=18)
+        main.pack(fill="both", expand=True)
+        ttk.Label(main, text="Admin dashboard", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 12))
+
+        profile = active_profile_email() or "no profile"
+        role = current_user_role()
+        cloud_config = "configured" if supabase_is_configured() else "not configured"
+        cloud_session = supabase_current_session()
+        cloud_login = cloud_session.get("user", {}).get("email") or "not logged in"
+        summary = ttk.Frame(main, style="Panel.TFrame")
+        summary.pack(fill="x", pady=(0, 14))
+        for index, (label, value) in enumerate([
+            ("Profile", profile),
+            ("Status", role),
+            ("Supabase", cloud_config),
+            ("Cloud login", cloud_login),
+            ("Settings file", str(CURRENT_PROFILE.get("settings_file", SETTINGS_FILE))),
+        ]):
+            card = ttk.Frame(summary, style="Panel.TFrame", padding=14)
+            card.grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 8, 0))
+            ttk.Label(card, text=label, style="CardText.TLabel").pack(anchor="w")
+            ttk.Label(card, text=value, style="CardTitle.TLabel", wraplength=260).pack(anchor="w", pady=(4, 0))
+            summary.columnconfigure(index, weight=1, uniform="admin_summary")
+
+        body = ttk.Frame(main, style="Panel.TFrame")
+        body.pack(fill="both", expand=True)
+        body.columnconfigure(0, weight=1)
+        body.columnconfigure(1, weight=1)
+
+        features = ttk.Frame(body, style="Panel.TFrame", padding=14)
+        features.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        ttk.Label(features, text="Feature access", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+        enabled = current_feature_set()
+        for feature, label in FEATURE_LABELS.items():
+            mark = "ON" if feature in enabled else "off"
+            ttk.Label(features, text=f"{mark:>3}  {label}", style="CardText.TLabel").pack(anchor="w", pady=1)
+
+        roadmap = ttk.Frame(body, style="Panel.TFrame", padding=14)
+        roadmap.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+        ttk.Label(roadmap, text="Cloud permission model", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+        text = (
+            "Active structure:\n\n"
+            "profiles\n"
+            "- id\n- email\n- status: free / paid / admin\n\n"
+            "feature_flags\n"
+            "- status\n- feature_key\n- enabled\n\n"
+            "user_settings\n"
+            "- user_id\n- settings\n\n"
+            "Current flow:\n"
+            "Supabase Auth -> profile status -> app unlocks functions.\n\n"
+            "Local artwork/video/PDF files stay in your own folders. Only paths and preferences sync."
+        )
+        ttk.Label(roadmap, text=text, style="CardText.TLabel", justify="left", wraplength=520).pack(anchor="w")
 
 
 class VuPage(ttk.Frame):
@@ -5230,14 +5875,21 @@ class HomePage(ttk.Frame):
         tiles = ttk.Frame(self)
         tiles.pack(fill="both", expand=True)
         tiles.columnconfigure((0, 1, 2), weight=1, uniform="tiles")
-        tiles.rowconfigure((0, 1), weight=1, uniform="tiles")
-
-        self._tile(tiles, 0, 0, "Song Analyzer", self.app.show_song_analyzer, "#2f6f73")
-        self._tile(tiles, 0, 1, "Reel Design", self.app.show_reel_design, "#7b5f2a")
-        self._tile(tiles, 0, 2, "Campaign Planner", self.app.show_post_planner, "#4f6f8f")
-        self._tile(tiles, 1, 0, "Tools", self.app.show_audio_vu, "#8d3f3f")
-        self._tile(tiles, 1, 1, "Shortcuts", self.app.show_tools, "#5b6770")
-        self._tile(tiles, 1, 2, "Metrics", self.app.show_metrics, "#5b6770")
+        tile_defs = [
+            ("Song Analyzer", self.app.show_song_analyzer, "#2f6f73"),
+            ("Reel Design", self.app.show_reel_design, "#7b5f2a"),
+            ("Campaign Planner", self.app.show_post_planner, "#4f6f8f"),
+            ("Tools", self.app.show_audio_vu, "#8d3f3f"),
+            ("Shortcuts", self.app.show_tools, "#5b6770"),
+            ("Metrics", self.app.show_metrics, "#5b6770"),
+        ]
+        if has_feature("admin_dashboard"):
+            tile_defs.append(("Admin", self.app.show_admin_dashboard, "#111111"))
+        row_count = max(2, math.ceil(len(tile_defs) / 3))
+        for row in range(row_count):
+            tiles.rowconfigure(row, weight=1, uniform="tiles")
+        for index, (title, command, color) in enumerate(tile_defs):
+            self._tile(tiles, index // 3, index % 3, title, command, color)
 
     def _tile(self, parent, row, column, title, command, color):
         card = tk.Frame(parent, bg=self.app.colors["panel_bg"], highlightthickness=0, cursor="hand2")
@@ -5973,7 +6625,6 @@ class AudioVuPage(ttk.Frame):
         needle_tip = point_for(level, -10)
         canvas.create_line(center_x, height + 24, needle_tip[0], needle_tip[1], fill=ink, width=3, tags=("audio_dynamic",))
         canvas.create_text(width - 22, 22, text=dbfs_text, fill=ink, anchor="ne", font=("Segoe UI", 17), tags=("audio_dynamic",))
-        rounded_rect(canvas, 1, 1, width - 2, height - 2, radius=10, outline=border, width=1, fill="", tags=("audio_dynamic",))
 
 
 class SongAnalyzerPage(ttk.Frame):
