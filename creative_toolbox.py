@@ -10,6 +10,7 @@ import queue
 import random
 import re
 import shutil
+import smtplib
 import struct
 import subprocess
 import sys
@@ -22,6 +23,7 @@ import urllib.request
 import webbrowser
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from email.message import EmailMessage
 from tkinter import filedialog, messagebox, ttk
 
 try:
@@ -68,12 +70,13 @@ except Exception:
     IAudioMeterInformation = None
 
 
-APP_VERSION = "V5.1"
+APP_VERSION = "V5.3"
 APP_TITLE = f"LukeStrom Creative Tool {APP_VERSION}"
 BASE_DIR = Path(r"C:\appdevelopment\toolbox\codex")
 GITHUB_REPO = "BcNodesApps/lukestrom_creative_toolbox"
 GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"
 GITHUB_LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+UPDATE_CHECK_INTERVAL_HOURS = 12
 APP_ICON_FILENAME = "260414 logo lukestrom round.png"
 TILE_BACKGROUND_DIR = Path(r"D:\OneDrive\Production\creations")
 TILE_BACKGROUND_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -615,6 +618,22 @@ APP_RELEASE_NOTES = """# Creative Toolbox release notes
 ## Current version
 
 Creative Toolbox is now a single-window creator dashboard for music, reels, planning, downloads, metrics, system actions, and quick creator links.
+
+## V5.3
+- SD Import now has a Format card button for the selected removable drive.
+- SD Import can move or copy imported files; Move files is enabled by default.
+- SD Import now has built-in email settings for sending an import summary after each card.
+- SMTP passwords are stored through Windows Credential Manager instead of the app settings file.
+- When email is disabled, SD Import skips email silently.
+- Refresh moved from the top bar into the hamburger menu.
+- VU meter frames were simplified further for a cleaner no-box look.
+- Reel Design dropdown readability was improved in dark mode.
+
+## V5.2
+- The app now checks GitHub Releases automatically shortly after startup.
+- Automatic checks are quiet when the app is already up to date.
+- Automatic checks are limited to once every 12 hours, while manual checks remain available under Info.
+- A simple installer/updater script is now included in the output folder for installing the latest GitHub Release on other Windows PCs.
 
 ## V5.1
 - A Check for update option was added under Info in the hamburger menu.
@@ -1868,6 +1887,7 @@ class CreativeToolbox(tk.Tk):
         self._set_app_icon()
         self._build_shell()
         self.show_home()
+        self.after(2500, self.auto_check_for_update)
 
     def _set_app_icon(self):
         if Image is None or ImageTk is None or not APP_ICON_PATH.exists():
@@ -1895,6 +1915,27 @@ class CreativeToolbox(tk.Tk):
         self.style.configure("TButton", padding=(14, 8), font=("Segoe UI", 10))
         self.style.configure("Accent.TButton", padding=(16, 9), font=("Segoe UI", 10, "bold"))
         self.style.configure("TEntry", padding=6, fieldbackground=colors["entry_bg"], foreground=colors["entry_fg"])
+        self.style.configure(
+            "TCombobox",
+            padding=5,
+            fieldbackground=colors["entry_bg"],
+            background=colors["entry_bg"],
+            foreground=colors["entry_fg"],
+            arrowcolor=colors["text"],
+            selectbackground=colors["entry_bg"],
+            selectforeground=colors["entry_fg"],
+        )
+        self.style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", colors["entry_bg"]), ("!disabled", colors["entry_bg"])],
+            foreground=[("readonly", colors["entry_fg"]), ("!disabled", colors["entry_fg"])],
+            selectbackground=[("readonly", colors["entry_bg"]), ("!disabled", colors["entry_bg"])],
+            selectforeground=[("readonly", colors["entry_fg"]), ("!disabled", colors["entry_fg"])],
+        )
+        self.option_add("*TCombobox*Listbox.background", colors["entry_bg"])
+        self.option_add("*TCombobox*Listbox.foreground", colors["entry_fg"])
+        self.option_add("*TCombobox*Listbox.selectBackground", "#4f6f8f")
+        self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
         self.style.configure("TSpinbox", padding=4, fieldbackground=colors["entry_bg"], foreground=colors["entry_fg"], arrowcolor=colors["text"])
         self.style.map(
             "TSpinbox",
@@ -1933,8 +1974,6 @@ class CreativeToolbox(tk.Tk):
 
         right_nav = ttk.Frame(self.topbar)
         right_nav.grid(row=0, column=2, sticky="e")
-        self.refresh_button = ttk.Button(right_nav, text="↻", width=3, command=self.refresh_active_page, style="NavLinks.TButton", takefocus=False)
-        self.refresh_button.pack(side="left", padx=(0, 6))
         self.menu_button = ttk.Button(right_nav, text="☰", width=3, command=self.show_settings_menu, style="NavLinks.TButton", takefocus=False)
         self.menu_button.pack(side="left")
 
@@ -1954,6 +1993,7 @@ class CreativeToolbox(tk.Tk):
         menu.add_checkbutton(label="Dark mode", variable=dark_var, command=self.toggle_dark_mode)
         fullscreen_var = tk.BooleanVar(value=self.state() == "zoomed")
         menu.add_checkbutton(label="Fullscreen", variable=fullscreen_var, command=self.toggle_fullscreen)
+        menu.add_command(label="Refresh", command=self.refresh_active_page)
         menu.add_separator()
         menu.add_command(label="Artwork", state="disabled")
         menu.add_checkbutton(label="No picture", variable=tk.BooleanVar(value=load_settings().get("tile_background_disabled", False)), command=self.toggle_tile_pictures)
@@ -2532,20 +2572,43 @@ class CreativeToolbox(tk.Tk):
                 messagebox.showwarning("Chrome could not open", f"Opening in default browser instead.\n\n{exc}")
         webbrowser.open(url)
 
-    def check_for_update(self):
-        window = tk.Toplevel(self)
-        window.title("Check for update")
-        window.geometry("420x150")
-        window.resizable(False, False)
-        window.transient(self)
-        window.configure(bg=self.colors["panel_bg"])
-        shell = ttk.Frame(window, style="Panel.TFrame", padding=18)
-        shell.pack(fill="both", expand=True)
+    def auto_check_for_update(self):
+        settings = load_settings()
+        now = time_module.time()
+        last_check = float(settings.get("last_update_check", 0) or 0)
+        if now - last_check < UPDATE_CHECK_INTERVAL_HOURS * 3600:
+            return
+        settings["last_update_check"] = now
+        save_settings(settings)
+        self.check_for_update(silent=True)
+
+    def check_for_update(self, silent=False):
+        window = None
+        shell = None
         status_var = tk.StringVar(value="Checking GitHub Releases...")
-        ttk.Label(shell, text="Update check", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
-        ttk.Label(shell, textvariable=status_var, style="CardText.TLabel", wraplength=360).pack(anchor="w")
+
+        def ensure_window():
+            nonlocal window, shell
+            if window is not None:
+                return
+            window = tk.Toplevel(self)
+            window.title("Check for update")
+            window.geometry("420x150")
+            window.resizable(False, False)
+            window.transient(self)
+            window.configure(bg=self.colors["panel_bg"])
+            shell = ttk.Frame(window, style="Panel.TFrame", padding=18)
+            shell.pack(fill="both", expand=True)
+            ttk.Label(shell, text="Update check", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+            ttk.Label(shell, textvariable=status_var, style="CardText.TLabel", wraplength=360).pack(anchor="w")
+
+        if not silent:
+            ensure_window()
 
         def finish(message, release_url=None, is_update=False):
+            if silent and not is_update:
+                return
+            ensure_window()
             status_var.set(message)
             buttons = ttk.Frame(shell, style="Panel.TFrame")
             buttons.pack(fill="x", pady=(14, 0))
@@ -2563,13 +2626,20 @@ class CreativeToolbox(tk.Tk):
                 exe_asset = next((asset for asset in assets if str(asset.get("name", "")).lower().endswith(".exe")), None)
                 if exe_asset and exe_asset.get("browser_download_url"):
                     release_url = exe_asset["browser_download_url"]
-                if version_tuple(latest_tag) > version_tuple(APP_VERSION):
+                latest_version = version_tuple(latest_tag)
+                current_version = version_tuple(APP_VERSION)
+                if latest_version > current_version:
                     message = f"New version available: {latest_tag}\nCurrent version: {APP_VERSION}"
                     self.after(0, lambda: finish(message, release_url, True))
+                elif latest_version < current_version:
+                    message = f"Development version is newer than GitHub.\nCurrent version: {APP_VERSION}\nLatest release: {latest_tag or 'unknown'}"
+                    self.after(0, lambda: finish(message, GITHUB_RELEASES_URL, False))
                 else:
                     message = f"You are up to date.\nCurrent version: {APP_VERSION}\nLatest release: {latest_tag or 'unknown'}"
                     self.after(0, lambda: finish(message, GITHUB_RELEASES_URL, False))
             except Exception as exc:
+                if silent:
+                    return
                 message = (
                     "Could not check GitHub Releases automatically.\n\n"
                     "If the repo is private, this can happen because the app has no GitHub login token.\n"
@@ -3251,6 +3321,12 @@ def copy_file_verified(src, dest_dir):
     return dst
 
 
+def move_file_verified(src, dest_dir):
+    dst = copy_file_verified(src, dest_dir)
+    src.unlink()
+    return dst
+
+
 def eject_drive(drive):
     try:
         drive_text = str(Path(drive)).rstrip("\\")
@@ -3271,13 +3347,89 @@ def eject_drive(drive):
         return False, str(exc)
 
 
+EMAIL_CREDENTIAL_TARGET = "LukeStromCreativeTool.SDImportEmail"
+CRED_TYPE_GENERIC = 1
+
+
+class CREDENTIALW(ctypes.Structure):
+    _fields_ = [
+        ("Flags", wintypes.DWORD),
+        ("Type", wintypes.DWORD),
+        ("TargetName", wintypes.LPWSTR),
+        ("Comment", wintypes.LPWSTR),
+        ("LastWritten", wintypes.FILETIME),
+        ("CredentialBlobSize", wintypes.DWORD),
+        ("CredentialBlob", ctypes.POINTER(ctypes.c_byte)),
+        ("Persist", wintypes.DWORD),
+        ("AttributeCount", wintypes.DWORD),
+        ("Attributes", ctypes.c_void_p),
+        ("TargetAlias", wintypes.LPWSTR),
+        ("UserName", wintypes.LPWSTR),
+    ]
+
+
+def get_windows_credential_password(target=EMAIL_CREDENTIAL_TARGET):
+    try:
+        advapi32 = ctypes.windll.advapi32
+        cred_ptr = ctypes.POINTER(CREDENTIALW)()
+        if not advapi32.CredReadW(target, CRED_TYPE_GENERIC, 0, ctypes.byref(cred_ptr)):
+            return ""
+        try:
+            cred = cred_ptr.contents
+            size = int(cred.CredentialBlobSize)
+            if size <= 0:
+                return ""
+            return ctypes.wstring_at(cred.CredentialBlob, size // 2)
+        finally:
+            advapi32.CredFree(cred_ptr)
+    except Exception:
+        return ""
+
+
+def save_windows_credential_password(username, password, target=EMAIL_CREDENTIAL_TARGET):
+    if not username or not password:
+        return False, "Missing username or password."
+    try:
+        subprocess.run(["cmdkey", f"/generic:{target}", f"/user:{username}", f"/pass:{password}"], capture_output=True, text=True, timeout=8)
+        return True, "Password saved in Windows Credential Manager."
+    except Exception as exc:
+        return False, str(exc)
+
+
+def sd_email_settings():
+    settings = load_settings().get("sd_import_email", {})
+    return {
+        "enabled": bool(settings.get("enabled", False)),
+        "to": settings.get("to", ""),
+        "from": settings.get("from", ""),
+        "server": settings.get("server", ""),
+        "port": int(settings.get("port", 587) or 587),
+        "username": settings.get("username", ""),
+        "use_tls": bool(settings.get("use_tls", True)),
+    }
+
+
 def send_sd_import_email(subject, body):
     try:
-        for candidate in (BASE_DIR, BASE_DIR.parent / "archive" / "1-sdcard_listener", Path(__file__).resolve().parent):
-            if candidate.exists() and str(candidate) not in sys.path:
-                sys.path.insert(0, str(candidate))
-        from emailmodule import send_email
-        send_email(subject=subject, body=body)
+        config = sd_email_settings()
+        if not config["enabled"]:
+            return True, ""
+        missing = [name for name in ("to", "from", "server", "username") if not config.get(name)]
+        if missing:
+            return False, f"Email not sent: missing {', '.join(missing)}."
+        password = get_windows_credential_password()
+        if not password:
+            return False, "Email not sent: SMTP password is not saved."
+        message = EmailMessage()
+        message["Subject"] = subject
+        message["From"] = config["from"]
+        message["To"] = config["to"]
+        message.set_content(body)
+        with smtplib.SMTP(config["server"], config["port"], timeout=20) as smtp:
+            if config["use_tls"]:
+                smtp.starttls()
+            smtp.login(config["username"], password)
+            smtp.send_message(message)
         return True, "Email sent."
     except Exception as exc:
         return False, f"Email not sent: {exc}"
@@ -3392,6 +3544,7 @@ class SDImportWindow(tk.Toplevel):
         self.worker = None
         self.queue = queue.Queue()
         self.drive_vars = {}
+        self.move_files_var = tk.BooleanVar(value=True)
         self.processed_drives = set()
         self._build()
         self.refresh_drives()
@@ -3415,6 +3568,9 @@ class SDImportWindow(tk.Toplevel):
         self.stop_button = ttk.Button(controls, text="Stop", command=self.stop_import, state="disabled")
         self.stop_button.pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Refresh drives", command=self.refresh_drives).pack(side="left", padx=(8, 0))
+        ttk.Button(controls, text="Format card", command=self.format_selected_drive).pack(side="left", padx=(8, 0))
+        ttk.Button(controls, text="Email settings", command=self.open_email_settings).pack(side="left", padx=(8, 0))
+        ttk.Checkbutton(controls, text="Move files", variable=self.move_files_var).pack(side="left", padx=(14, 0))
         ttk.Button(controls, text="Open destination", command=lambda: os.startfile(str(Path(self.dest_var.get())))).pack(side="right")
 
         self.progress = ttk.Progressbar(shell, mode="determinate", maximum=100)
@@ -3447,6 +3603,29 @@ class SDImportWindow(tk.Toplevel):
     def selected_drives(self):
         return [Path(path) for path, var in self.drive_vars.items() if var.get()]
 
+    def open_email_settings(self):
+        EmailSettingsWindow(self.app, self)
+
+    def format_selected_drive(self):
+        if self.worker is not None and self.worker.is_alive():
+            messagebox.showwarning("Listener running", "Stop the SD Import listener before formatting a card.")
+            return
+        drives = self.selected_drives() or removable_drive_roots()
+        if not drives:
+            messagebox.showinfo("No card", "No removable SD/card drive detected.")
+            return
+        drive = drives[0]
+        confirmed = messagebox.askyesno(
+            "Format card",
+            "This opens the Windows format command for this drive:\n\n"
+            f"{drive}\n\n"
+            "Formatting deletes files on the card. Continue?",
+        )
+        if not confirmed:
+            return
+        drive_text = str(drive).rstrip("\\")
+        subprocess.Popen(["cmd", "/k", f"echo Format SD card: {drive_text} & echo. & format {drive_text} /FS:exFAT /Q"], shell=False)
+
     def destination_text(self):
         destination = sd_import_destination()
         if destination == SD_IMPORT_DEST_DIR:
@@ -3461,7 +3640,8 @@ class SDImportWindow(tk.Toplevel):
         self.stop_button.configure(state="normal")
         self.progress.configure(value=0)
         self.progress_var.set("Listening for SD cards...")
-        self.append_log("Listener started. Insert an SD card to import automatically.")
+        mode = "MOVE" if self.move_files_var.get() else "COPY"
+        self.append_log(f"Listener started in {mode} mode. Insert an SD card to import automatically.")
         self.worker = threading.Thread(target=self.listener_worker, args=(destination,), daemon=True)
         self.worker.start()
 
@@ -3500,7 +3680,8 @@ class SDImportWindow(tk.Toplevel):
                 body = self.sd_summary_text(summary)
                 self.queue.put(("log", body))
                 email_ok, email_msg = send_sd_import_email("SD Import: Session Summary", body)
-                self.queue.put(("log", email_msg))
+                if email_msg:
+                    self.queue.put(("log", email_msg))
                 self.processed_drives.add(key)
                 stable_seen.pop(key, None)
                 self.queue.put(("status", "Listening for the next SD card..."))
@@ -3512,14 +3693,16 @@ class SDImportWindow(tk.Toplevel):
         total = len(files)
         copied = 0
         errors = []
+        move_mode = bool(self.move_files_var.get())
+        action = "Moved" if move_mode else "Copied"
         self.queue.put(("log", f"Found {total:,} file(s) on {drive}."))
         for index, src in enumerate(files, start=1):
             if self.stop_event.is_set():
                 break
             try:
-                dst = copy_file_verified(src, destination)
+                dst = move_file_verified(src, destination) if move_mode else copy_file_verified(src, destination)
                 copied += 1
-                self.queue.put(("log", f"Copied: {src.name} -> {dst.name}"))
+                self.queue.put(("log", f"{action}: {src.name} -> {dst.name}"))
             except Exception as exc:
                 errors.append(f"{src}: {exc}")
                 self.queue.put(("log", f"Error: {src} | {exc}"))
@@ -3529,6 +3712,7 @@ class SDImportWindow(tk.Toplevel):
             "destination": str(destination),
             "found": total,
             "copied": copied,
+            "mode": "move" if move_mode else "copy",
             "errors": errors,
             "completed": not self.stop_event.is_set(),
         }
@@ -3539,8 +3723,9 @@ class SDImportWindow(tk.Toplevel):
             "",
             f"Drive: {summary.get('drive', '-')}",
             f"Destination: {summary.get('destination', '-')}",
+            f"Mode: {summary.get('mode', 'copy')}",
             f"Found: {summary.get('found', 0):,}",
-            f"Copied: {summary.get('copied', 0):,}",
+            f"Imported: {summary.get('copied', 0):,}",
             f"Ejected: {summary.get('ejected', 'NO')}",
         ]
         if summary.get("eject_msg"):
@@ -3569,19 +3754,21 @@ class SDImportWindow(tk.Toplevel):
                 return
             copied = 0
             errors = 0
+            move_mode = bool(self.move_files_var.get())
+            action = "Moved" if move_mode else "Copied"
             for index, src in enumerate(files, start=1):
                 if self.stop_event.is_set():
-                    self.queue.put(("done", f"Stopped. Copied {copied:,} of {total:,} file(s)."))
+                    self.queue.put(("done", f"Stopped. Imported {copied:,} of {total:,} file(s)."))
                     return
                 try:
-                    dst = copy_file_verified(src, destination)
+                    dst = move_file_verified(src, destination) if move_mode else copy_file_verified(src, destination)
                     copied += 1
-                    self.queue.put(("log", f"Copied: {src.name} -> {dst.name}"))
+                    self.queue.put(("log", f"{action}: {src.name} -> {dst.name}"))
                 except Exception as exc:
                     errors += 1
                     self.queue.put(("log", f"Error: {src} | {exc}"))
                 self.queue.put(("progress", index, total, copied, errors))
-            self.queue.put(("done", f"Done. Copied {copied:,} of {total:,} file(s). Errors: {errors:,}."))
+            self.queue.put(("done", f"Done. Imported {copied:,} of {total:,} file(s). Errors: {errors:,}."))
         except Exception as exc:
             self.queue.put(("done", f"Import failed: {exc}"))
 
@@ -3606,6 +3793,97 @@ class SDImportWindow(tk.Toplevel):
             pass
         if self.winfo_exists():
             self.after(100, self.poll_queue)
+
+
+class EmailSettingsWindow(tk.Toplevel):
+    def __init__(self, app, parent_window=None):
+        super().__init__(app)
+        self.app = app
+        self.parent_window = parent_window
+        self.title(f"{APP_TITLE} - SD Import Email")
+        self.geometry("560x440")
+        self.resizable(False, False)
+        self.configure(bg=self.app.colors["app_bg"])
+        config = sd_email_settings()
+        self.enabled_var = tk.BooleanVar(value=config["enabled"])
+        self.to_var = tk.StringVar(value=config["to"])
+        self.from_var = tk.StringVar(value=config["from"])
+        self.server_var = tk.StringVar(value=config["server"])
+        self.port_var = tk.StringVar(value=str(config["port"]))
+        self.username_var = tk.StringVar(value=config["username"])
+        self.password_var = tk.StringVar(value="")
+        self.tls_var = tk.BooleanVar(value=config["use_tls"])
+        self.status_var = tk.StringVar(value="Password is stored separately in Windows Credential Manager.")
+        self._build()
+
+    def _build(self):
+        shell = ttk.Frame(self, style="Panel.TFrame", padding=18)
+        shell.pack(fill="both", expand=True)
+        ttk.Label(shell, text="SD Import email settings", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 14))
+        ttk.Checkbutton(shell, text="Send email after SD import", variable=self.enabled_var).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 12))
+
+        rows = [
+            ("Recipient", self.to_var),
+            ("From address", self.from_var),
+            ("SMTP server", self.server_var),
+            ("SMTP port", self.port_var),
+            ("Username", self.username_var),
+        ]
+        for index, (label, var) in enumerate(rows, start=2):
+            ttk.Label(shell, text=label, style="CardText.TLabel").grid(row=index, column=0, sticky="w", padx=(0, 10), pady=5)
+            ttk.Entry(shell, textvariable=var, width=46).grid(row=index, column=1, sticky="ew", pady=5)
+
+        password_row = len(rows) + 2
+        ttk.Label(shell, text="Password/app password", style="CardText.TLabel").grid(row=password_row, column=0, sticky="w", padx=(0, 10), pady=5)
+        ttk.Entry(shell, textvariable=self.password_var, show="*", width=46).grid(row=password_row, column=1, sticky="ew", pady=5)
+
+        ttk.Checkbutton(shell, text="Use TLS", variable=self.tls_var).grid(row=password_row + 1, column=1, sticky="w", pady=(4, 12))
+        ttk.Label(shell, textvariable=self.status_var, style="CardText.TLabel", wraplength=480).grid(row=password_row + 2, column=0, columnspan=2, sticky="w", pady=(0, 14))
+
+        buttons = ttk.Frame(shell, style="Panel.TFrame")
+        buttons.grid(row=password_row + 3, column=0, columnspan=2, sticky="ew")
+        ttk.Button(buttons, text="Save", command=self.save).pack(side="left")
+        ttk.Button(buttons, text="Send test", command=self.send_test).pack(side="left", padx=(8, 0))
+        ttk.Button(buttons, text="Close", command=self.destroy).pack(side="right")
+        shell.columnconfigure(1, weight=1)
+
+    def settings_dict(self):
+        try:
+            port = int(self.port_var.get().strip() or "587")
+        except ValueError:
+            port = 587
+        return {
+            "enabled": self.enabled_var.get(),
+            "to": self.to_var.get().strip(),
+            "from": self.from_var.get().strip(),
+            "server": self.server_var.get().strip(),
+            "port": port,
+            "username": self.username_var.get().strip(),
+            "use_tls": self.tls_var.get(),
+        }
+
+    def save(self):
+        settings = load_settings()
+        settings["sd_import_email"] = self.settings_dict()
+        save_settings(settings)
+        password = self.password_var.get()
+        if password:
+            ok, msg = save_windows_credential_password(self.username_var.get().strip(), password)
+            self.status_var.set(msg if ok else f"Password save failed: {msg}")
+        else:
+            self.status_var.set("Email settings saved. Existing saved password was kept.")
+
+    def send_test(self):
+        self.save()
+        ok, msg = send_sd_import_email(
+            "SD Import test email",
+            "This is a test email from LukeStrom Creative Tool SD Import.",
+        )
+        self.status_var.set(msg)
+        if ok and msg:
+            messagebox.showinfo("Email test", msg)
+        elif not ok:
+            messagebox.showerror("Email test failed", msg)
 
 
 class ToolsPage(ttk.Frame):
@@ -3780,13 +4058,12 @@ class ToolsPage(ttk.Frame):
         if value is None:
             canvas.delete("all")
             background_path = getattr(canvas, "meter_background_path", None)
-            rounded_rect(canvas, 0, 0, width, height, radius=10, fill=inner_face, outline=border, width=1, tags=("meter_face",))
+            rounded_rect(canvas, 0, 0, width, height, radius=10, fill=inner_face, outline="", width=0, tags=("meter_face",))
             if background_path and Image is not None and ImageTk is not None:
                 try:
                     bg_image = image_for_meter_full(background_path, width, height)
                     canvas.meter_background_ref = bg_image
                     canvas.create_image(0, 0, image=bg_image, anchor="nw", tags=("meter_face",))
-                    rounded_rect(canvas, 0, 0, width - 1, height - 1, radius=10, outline=border, width=1, fill="", tags=("meter_face",))
                 except Exception:
                     canvas.meter_background_ref = None
             return
@@ -3809,14 +4086,13 @@ class ToolsPage(ttk.Frame):
             canvas.delete("all")
             canvas.meter_face_signature = face_signature
             rounded_rect(canvas, 0, 0, width, height, radius=10, fill=outer_bg, outline="", tags=("meter_face",))
-            rounded_rect(canvas, 6, 6, width - 6, height - 6, radius=10, fill=face_shadow, outline=border, width=1, tags=("meter_face", "meter_frame"))
-            rounded_rect(canvas, 14, 14, width - 14, height - 14, radius=10, fill=face, outline=border, tags=("meter_face", "meter_frame"))
-            rounded_rect(canvas, 20, 20, width - 20, height - 20, radius=10, fill=inner_face, outline="", tags=("meter_face",))
+            rounded_rect(canvas, 6, 6, width - 6, height - 6, radius=10, fill=face, outline="", tags=("meter_face",))
+            rounded_rect(canvas, 14, 14, width - 14, height - 14, radius=10, fill=inner_face, outline="", tags=("meter_face",))
             if background_path and Image is not None and ImageTk is not None:
                 try:
-                    bg_image = image_for_meter(background_path, width - 40, height - 40, inner_face)
+                    bg_image = image_for_meter(background_path, width - 28, height - 28, inner_face)
                     canvas.meter_background_ref = bg_image
-                    canvas.create_image(20, 20, image=bg_image, anchor="nw", tags=("meter_face",))
+                    canvas.create_image(14, 14, image=bg_image, anchor="nw", tags=("meter_face",))
                 except Exception:
                     canvas.meter_background_ref = None
             canvas.create_text(26, 24, text=title, fill=ink, anchor="nw", font=("Segoe UI", 11), tags=("meter_face",))
@@ -3864,11 +4140,8 @@ class ToolsPage(ttk.Frame):
         canvas.create_line(pivot_x, pivot_y, needle_tip[0], needle_tip[1], fill=needle, width=2, tags=("meter_dynamic", "meter_needle"))
 
         canvas.create_rectangle(0, height - 24, width, height, fill=outer_bg, outline="", tags=("meter_dynamic", "meter_frame_overlay"))
-        canvas.create_rectangle(6, height - 24, width - 6, height - 6, fill=face_shadow, outline="", tags=("meter_dynamic", "meter_frame_overlay"))
-        canvas.create_rectangle(14, height - 24, width - 14, height - 14, fill=face, outline="", tags=("meter_dynamic", "meter_frame_overlay"))
-        canvas.create_rectangle(20, height - 24, width - 20, height - 20, fill=inner_face, outline="", tags=("meter_dynamic", "meter_frame_overlay"))
-        rounded_rect(canvas, 6, 6, width - 6, height - 6, radius=10, outline=border, width=1, fill="", tags=("meter_dynamic", "meter_frame_overlay"))
-        rounded_rect(canvas, 14, 14, width - 14, height - 14, radius=10, outline=border, width=1, fill="", tags=("meter_dynamic", "meter_frame_overlay"))
+        canvas.create_rectangle(6, height - 24, width - 6, height - 6, fill=face, outline="", tags=("meter_dynamic", "meter_frame_overlay"))
+        canvas.create_rectangle(14, height - 24, width - 14, height - 14, fill=inner_face, outline="", tags=("meter_dynamic", "meter_frame_overlay"))
 
     def refresh_performance(self):
         if not self.winfo_exists() or not self.performance_running:

@@ -1,12 +1,29 @@
 @echo off
 setlocal EnableExtensions
 
-cd /d "C:\appdevelopment\toolbox\codex"
+set "SOURCE=C:\Users\Dell Optiplex\Documents\Codex\2026-06-20\ik-h\outputs\creative_toolbox.py"
+set "TARGET_DIR=C:\appdevelopment\toolbox\codex"
+set "TARGET=%TARGET_DIR%\creative_toolbox.py"
+
+cd /d "%TARGET_DIR%"
 
 echo.
 echo === Creative Toolbox build ===
 echo Working folder: %CD%
 echo.
+
+echo Updating source from Codex outputs...
+if not exist "%SOURCE%" (
+    echo ERROR: Source file not found:
+    echo %SOURCE%
+    goto fail
+)
+
+copy /Y "%SOURCE%" "%TARGET%" >nul
+if errorlevel 1 (
+    echo ERROR: Could not copy latest creative_toolbox.py.
+    goto fail
+)
 
 if not exist "creative_toolbox.py" (
     echo ERROR: creative_toolbox.py was not found.
